@@ -2,6 +2,7 @@ const TASKS_KEY = "huskelapp_tasks_v1";
 const EVENTS_KEY = "huskelapp_events_v1";
 const SETTINGS_KEY = "huskelapp_settings_v1";
 const LINKS_KEY = "huskelapp_links_v1";
+const NOTES_KEY = "huskelapp_notes_v1";
 
 function readJson(key, fallback) {
   try {
@@ -39,6 +40,13 @@ export function createLocalStore() {
     },
     async saveLinks(links) {
       writeJson(LINKS_KEY, links);
+    },
+    async getNotes() {
+      const value = readJson(NOTES_KEY, []);
+      return Array.isArray(value) ? value : [];
+    },
+    async saveNotes(notes) {
+      writeJson(NOTES_KEY, notes);
     },
     async getSettings() {
       const value = readJson(SETTINGS_KEY, {});
