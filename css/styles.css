@@ -338,3 +338,87 @@ body.is-sorting,body.is-sorting * { cursor: grabbing !important; user-select: no
   .modal-actions { flex-direction: column-reverse; }
   .modal-actions .button { width: 100%; }
 }
+
+
+/* Task workflow states */
+.task-card.status-not-started {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--muted) 55%, transparent), var(--shadow-soft);
+}
+.task-card.status-in-progress {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  box-shadow: inset 3px 0 0 var(--accent), var(--shadow-soft);
+}
+.task-card.status-waiting {
+  opacity: .62;
+  background: color-mix(in srgb, var(--panel) 76%, var(--bg));
+  border-color: color-mix(in srgb, var(--muted) 26%, var(--border));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--muted) 58%, transparent), var(--shadow-soft);
+  filter: saturate(.62);
+}
+.task-card.status-waiting:hover {
+  opacity: .76;
+  border-color: color-mix(in srgb, var(--muted) 42%, var(--border));
+}
+.task-card.status-in-progress.overdue,
+.task-card.status-not-started.overdue {
+  border-color: color-mix(in srgb, var(--danger) 65%, var(--border));
+  box-shadow: inset 3px 0 0 var(--danger), var(--shadow-soft);
+}
+.status-in-progress-badge {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--accent-2);
+}
+.status-not-started-badge {
+  background: color-mix(in srgb, var(--panel-3) 74%, transparent);
+  border-color: var(--border);
+  color: var(--text-soft);
+}
+.status-waiting-badge {
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+  border-color: color-mix(in srgb, var(--muted) 26%, transparent);
+  color: var(--muted);
+}
+.status-done-badge {
+  background: rgba(75, 197, 138, .10);
+  border-color: rgba(75, 197, 138, .18);
+  color: #8fe0b5;
+}
+.complete-task-btn {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(75, 197, 138, .28);
+  border-radius: 8px;
+  background: rgba(75, 197, 138, .11);
+  color: color-mix(in srgb, var(--success) 82%, white 18%);
+  font-size: .72rem;
+  font-weight: 800;
+}
+.complete-task-btn:hover {
+  background: rgba(75, 197, 138, .18);
+  border-color: rgba(75, 197, 138, .45);
+}
+.quick-list-section-title {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: .66rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+.waiting-quick-list { margin-top: 2px; }
+.waiting-quick-list li { opacity: .52; }
+.waiting-quick-list li::before {
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+  color: var(--muted);
+}
+.quick-list li.quick-in-progress::before {
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+.filter[data-filter="waiting"].active {
+  background: color-mix(in srgb, var(--muted) 34%, var(--panel-3));
+  color: var(--text);
+}

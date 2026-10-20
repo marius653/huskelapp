@@ -24,6 +24,7 @@ const el = {
   todayLabel: $('#todayLabel'),
   filterButtons: $$('.filter'),
   openCountBadge: $('#openCountBadge'),
+  waitingCountBadge: $('#waitingCountBadge'),
   doneCountBadge: $('#doneCountBadge'),
   sortMode: $('#sortMode'),
   deleteDoneBtn: $('#deleteDoneBtn'),
@@ -218,19 +219,39 @@ function sortedTasks(list) {
 
 function filteredTasks() {
   return sortedTasks(tasks.filter(task => {
-    const statusMatch = currentFilter === 'done' ? task.status === 'Ferdig' : task.status !== 'Ferdig';
+    let statusMatch = false;
+    if (currentFilter === 'done') statusMatch = task.status === 'Ferdig';
+    else if (currentFilter === 'waiting') statusMatch = task.status === 'Venter';
+    else statusMatch = task.status !== 'Ferdig' && task.status !== 'Venter';
     return statusMatch && queryMatchesTask(task);
   }));
 }
 
 function isOverdue(task) {
-  return task.status !== 'Ferdig' && task.date && task.date < localDateString();
+  return task.status !== 'Ferdig' &&
+    task.status !== 'Venter' &&
+    task.date &&
+    task.date < localDateString();
 }
 
 function priorityClass(priority) {
   if (priority === 'Høy') return 'priority-high';
   if (priority === 'Lav') return 'priority-low';
   return 'priority-medium';
+}
+
+function taskStatusClass(status) {
+  if (status === 'Pågår') return 'status-in-progress';
+  if (status === 'Venter') return 'status-waiting';
+  if (status === 'Ferdig') return 'done';
+  return 'status-not-started';
+}
+
+function statusBadgeClass(status) {
+  if (status === 'Pågår') return 'status-in-progress-badge';
+  if (status === 'Venter') return 'status-waiting-badge';
+  if (status === 'Ferdig') return 'status-done-badge';
+  return 'status-not-started-badge';
 }
 
 function taskStatusOptions(current) {
@@ -248,33 +269,60 @@ function shouldConfirm(message) {
 }
 
 function renderCounts() {
-  const open = tasks.filter(task => task.status !== 'Ferdig').length;
-  const done = tasks.filter(task => task.status === 'Ferdig').length;
-  el.openCountBadge.textContent = open ? `(${open})` : '';
-  el.doneCountBadge.textContent = done ? `(${done})` : '';
-  const today = localDateString();
-  const dueToday = tasks.filter(task => task.status !== 'Ferdig' && task.date === today).length;
+  const active = tasks.filter(task => task.status !== 'Ferdig' && task.status !== 'Venter').length;
   const waiting = tasks.filter(task => task.status === 'Venter').length;
-  el.topSummary.textContent = `${dueToday} med frist i dag${waiting ? ` · ${waiting} venter` : ''}`;
+  const done = tasks.filter(task => task.status === 'Ferdig').length;
+
+  el.openCountBadge.textContent = active ? `(${active})` : '';
+  el.waitingCountBadge.textContent = waiting ? `(${waiting})` : '';
+  el.doneCountBadge.textContent = done ? `(${done})` : '';
+
+  const today = localDateString();
+  const dueToday = tasks.filter(task =>
+    task.status !== 'Ferdig' &&
+    task.status !== 'Venter' &&
+    task.date === today
+  ).length;
+
+  el.topSummary.textContent = `${dueToday} med frist i dag${waiting ? ` · ${waiting} pauset` : ''}`;
 }
 
 function renderTaskOverview() {
-  const openTasks = sortedTasks(tasks.filter(task => task.status !== 'Ferdig' && queryMatchesTask(task)));
-  if (!openTasks.length) {
+  const activeTasks = sortedTasks(tasks.filter(task =>
+    task.status !== 'Ferdig' &&
+    task.status !== 'Venter' &&
+    queryMatchesTask(task)
+  ));
+  const waitingTasks = sortedTasks(tasks.filter(task =>
+    task.status === 'Venter' &&
+    queryMatchesTask(task)
+  ));
+
+  if (!activeTasks.length && !waitingTasks.length) {
     el.taskOverview.innerHTML = '<div class="quick-list-empty">Ingen åpne oppgaver.</div>';
     return;
   }
-  el.taskOverview.innerHTML = `<ol class="quick-list">${openTasks.map(task => `<li>${escapeHtml(task.text)}</li>`).join('')}</ol>`;
+
+  const activeMarkup = activeTasks.length
+    ? `<ol class="quick-list">${activeTasks.map(task => `<li class="${task.status === 'Pågår' ? 'quick-in-progress' : 'quick-not-started'}">${escapeHtml(task.text)}</li>`).join('')}</ol>`
+    : '<div class="quick-list-empty">Ingen aktive oppgaver.</div>';
+
+  const waitingMarkup = waitingTasks.length
+    ? `<div class="quick-list-section-title">Venter</div><ol class="quick-list waiting-quick-list">${waitingTasks.map(task => `<li>${escapeHtml(task.text)}</li>`).join('')}</ol>`
+    : '';
+
+  el.taskOverview.innerHTML = activeMarkup + waitingMarkup;
 }
 
 function renderProgress() {
-  const open = tasks.filter(task => task.status !== 'Ferdig').length;
+  const active = tasks.filter(task => task.status !== 'Ferdig' && task.status !== 'Venter').length;
+  const waiting = tasks.filter(task => task.status === 'Venter').length;
   const done = tasks.filter(task => task.status === 'Ferdig').length;
-  const total = open + done;
+  const total = active + waiting + done;
   const percent = total ? Math.round(done / total * 100) : 0;
   el.progressDonut.style.setProperty('--progress', `${percent}%`);
   el.progressPercent.textContent = `${percent}%`;
-  el.progressOpen.textContent = `${open} åpne ${open === 1 ? 'oppgave' : 'oppgaver'}`;
+  el.progressOpen.textContent = `${active} aktive · ${waiting} venter`;
   el.progressDone.textContent = `${done} ferdige ${done === 1 ? 'oppgave' : 'oppgaver'}`;
   el.progressTotal.textContent = `Totalt: ${total} ${total === 1 ? 'oppgave' : 'oppgaver'}`;
 }
@@ -286,7 +334,13 @@ function renderTasks() {
   renderProgress();
   renderStats();
   if (!visible.length) {
-    el.taskList.innerHTML = `<div class="empty-state">${searchQuery ? 'Ingen oppgaver matcher søket.' : currentFilter === 'done' ? 'Ingen ferdige oppgaver ennå.' : 'Ingen åpne oppgaver. Legg til en oppgave over.'}</div>`;
+    el.taskList.innerHTML = `<div class="empty-state">${searchQuery
+      ? 'Ingen oppgaver matcher søket.'
+      : currentFilter === 'done'
+        ? 'Ingen ferdige oppgaver ennå.'
+        : currentFilter === 'waiting'
+          ? 'Ingen oppgaver venter akkurat nå.'
+          : 'Ingen aktive oppgaver. Legg til en oppgave over.'}</div>`;
     return;
   }
   el.taskList.innerHTML = visible.map(task => {
@@ -310,15 +364,19 @@ function renderTasks() {
     const completed = (task.subtasks || []).filter(s => s.done).length;
     const subtaskCount = (task.subtasks || []).length;
     const addingSubtask = addingSubtaskTaskId === task.id;
-    return `<article class="task-card ${task.status === 'Ferdig' ? 'done' : ''} ${isOverdue(task) ? 'overdue' : ''}" data-id="${task.id}">
+    return `<article class="task-card ${taskStatusClass(task.status)} ${isOverdue(task) ? 'overdue' : ''}" data-id="${task.id}">
       <button class="drag-handle" type="button" aria-label="Flytt oppgave" title="${settings.sortMode === 'manual' ? 'Dra for å flytte. Pil opp/ned flytter med tastatur.' : 'Bytt til manuell sortering for å flytte.'}">⠿</button>
       <div class="task-main">
-        <div class="task-title-row"><input class="task-complete-toggle" type="checkbox" aria-label="Marker oppgave som ferdig" ${task.status === 'Ferdig' ? 'checked' : ''} /><span class="task-title">${escapeHtml(task.text)}</span><span class="badge ${priorityClass(task.priority)}">${task.priority}</span>${isOverdue(task) ? '<span class="badge overdue-badge">Frist passert</span>' : ''}</div>
-        <div class="task-meta"><span>Frist: ${formatDate(task.date)}</span><span>Status: ${escapeHtml(task.status)}</span></div>
+        <div class="task-title-row"><span class="task-title">${escapeHtml(task.text)}</span><span class="badge ${statusBadgeClass(task.status)}">${escapeHtml(task.status)}</span><span class="badge ${priorityClass(task.priority)}">${task.priority}</span>${isOverdue(task) ? '<span class="badge overdue-badge">Frist passert</span>' : ''}</div>
+        <div class="task-meta"><span>Frist: ${formatDate(task.date)}</span></div>
         ${subtaskCount ? `<div class="subtasks">${task.subtasks.map(subtask => `<label class="subtask ${subtask.done ? 'done' : ''}"><input class="subtask-check" type="checkbox" data-subtask-id="${subtask.id}" ${subtask.done ? 'checked' : ''} /><span>${escapeHtml(subtask.text)}</span></label>`).join('')}</div><div class="subtask-progress">${completed} av ${subtaskCount} underoppgaver ferdig</div>` : ''}
         ${task.status !== 'Ferdig' ? (addingSubtask ? `<form class="inline-subtask-form"><input class="inline-subtask-input" type="text" placeholder="Ny underoppgave" required /><button class="button button-primary" type="submit">Legg til</button><button class="button button-ghost cancel-inline-subtask" type="button">Avbryt</button></form>` : `<button class="inline-subtask-add" type="button"><span>+</span> Legg til underoppgave</button>`) : ''}
       </div>
-      <div class="task-actions"><select class="status-select" aria-label="Endre status">${taskStatusOptions(task.status)}</select><div class="task-action-row"><button class="task-action-button edit-btn" type="button">Rediger</button><button class="task-action-button delete delete-btn" type="button">Slett</button></div></div>
+      <div class="task-actions">
+        ${task.status !== 'Ferdig' ? '<button class="complete-task-btn" type="button">Ferdig</button>' : ''}
+        <select class="status-select" aria-label="Endre status">${taskStatusOptions(task.status)}</select>
+        <div class="task-action-row"><button class="task-action-button edit-btn" type="button">Rediger</button><button class="task-action-button delete delete-btn" type="button">Slett</button></div>
+      </div>
     </article>`;
   }).join('');
   requestAnimationFrame(() => {
@@ -413,26 +471,26 @@ function renderStats() {
   if (!el.statsContent) return;
   const total = tasks.length;
   const done = tasks.filter(task => task.status === 'Ferdig').length;
-  const open = total - done;
-  const overdue = tasks.filter(isOverdue).length;
   const waiting = tasks.filter(task => task.status === 'Venter').length;
+  const active = total - done - waiting;
+  const overdue = tasks.filter(isOverdue).length;
   const completion = total ? Math.round(done / total * 100) : 0;
   const priorities = {
-    'Høy': tasks.filter(task => task.status !== 'Ferdig' && task.priority === 'Høy').length,
-    'Middels': tasks.filter(task => task.status !== 'Ferdig' && task.priority === 'Middels').length,
-    'Lav': tasks.filter(task => task.status !== 'Ferdig' && task.priority === 'Lav').length
+    'Høy': tasks.filter(task => task.status !== 'Ferdig' && task.status !== 'Venter' && task.priority === 'Høy').length,
+    'Middels': tasks.filter(task => task.status !== 'Ferdig' && task.status !== 'Venter' && task.priority === 'Middels').length,
+    'Lav': tasks.filter(task => task.status !== 'Ferdig' && task.status !== 'Venter' && task.priority === 'Lav').length
   };
   const allSubtasks = tasks.flatMap(task => task.subtasks || []);
   const doneSubtasks = allSubtasks.filter(s => s.done).length;
   const subtaskPercent = allSubtasks.length ? Math.round(doneSubtasks / allSubtasks.length * 100) : 0;
   const priorityMax = Math.max(1, ...Object.values(priorities));
   el.statsContent.innerHTML = `<div class="stats-summary-grid">
-    <section class="panel metric-card"><span class="metric-label">Åpne oppgaver</span><strong class="metric-value">${open}</strong><span class="metric-note">${overdue} med passert frist</span></section>
+    <section class="panel metric-card"><span class="metric-label">Aktive oppgaver</span><strong class="metric-value">${active}</strong><span class="metric-note">${overdue} med passert frist</span></section>
     <section class="panel metric-card"><span class="metric-label">Ferdige oppgaver</span><strong class="metric-value">${done}</strong><span class="metric-note">${completion}% av alle oppgaver</span></section>
     <section class="panel metric-card"><span class="metric-label">Venter</span><strong class="metric-value">${waiting}</strong><span class="metric-note">oppgaver med status Venter</span></section>
     <section class="panel metric-card"><span class="metric-label">Hendelser</span><strong class="metric-value">${visibleEventList().length}</strong><span class="metric-note">de neste seks månedene</span></section>
   </div><div class="stats-detail-grid">
-    <section class="panel stats-panel"><div class="panel-heading"><div><span class="kicker">Oppgaver</span><h2>Ferdigstillelse</h2></div></div><div class="big-progress"><div class="progress-donut" style="--progress:${completion}%"><span>${completion}%</span></div><div><h2>${done} av ${total} oppgaver ferdig</h2><p class="muted-text">${open} åpne · ${overdue} med passert frist</p></div></div></section>
+    <section class="panel stats-panel"><div class="panel-heading"><div><span class="kicker">Oppgaver</span><h2>Ferdigstillelse</h2></div></div><div class="big-progress"><div class="progress-donut" style="--progress:${completion}%"><span>${completion}%</span></div><div><h2>${done} av ${total} oppgaver ferdig</h2><p class="muted-text">${active} aktive · ${waiting} venter · ${overdue} med passert frist</p></div></div></section>
     <section class="panel stats-panel"><div class="panel-heading"><div><span class="kicker">Åpne oppgaver</span><h2>Prioritetsfordeling</h2></div></div><div class="stats-list">${Object.entries(priorities).map(([name,count]) => `<div class="stats-row"><span>${name}</span><div class="stats-bar"><span style="width:${count / priorityMax * 100}%"></span></div><strong>${count}</strong></div>`).join('')}</div></section>
     <section class="panel stats-panel"><div class="panel-heading"><div><span class="kicker">Underoppgaver</span><h2>Fremdrift</h2></div></div><div class="stats-list"><div class="stats-row"><span>Ferdige</span><div class="stats-bar"><span style="width:${subtaskPercent}%"></span></div><strong>${doneSubtasks}/${allSubtasks.length}</strong></div></div></section>
     <section class="panel stats-panel"><div class="panel-heading"><div><span class="kicker">Neste</span><h2>Kommende hendelser</h2></div></div><div class="stats-list">${visibleEventList().slice(0,4).map(event => `<div class="stats-row"><span>${escapeHtml(formatLongDate(event.date))}</span><div class="muted-text">${escapeHtml(event.name)}</div><strong>${escapeHtml(countdownLabel(event.date))}</strong></div>`).join('') || '<div class="muted-text">Ingen kommende hendelser.</div>'}</div></section>
@@ -649,18 +707,21 @@ el.taskList.addEventListener('change', async event => {
     renderTasks();
     return;
   }
-  if (event.target.classList.contains('task-complete-toggle')) {
-    task.status = event.target.checked ? 'Ferdig' : 'Ikke startet';
-    if (settings.sortMode === 'manual') smartInsertTask(task);
-    await persistTasks();
-    renderTasks();
-  }
 });
 
 el.taskList.addEventListener('click', async event => {
   const card = event.target.closest('.task-card');
   if (!card) return;
   const taskId = card.dataset.id;
+  if (event.target.closest('.complete-task-btn')) {
+    const task = tasks.find(item => item.id === taskId);
+    if (!task) return;
+    task.status = 'Ferdig';
+    if (settings.sortMode === 'manual') smartInsertTask(task);
+    await persistTasks();
+    renderTasks();
+    return;
+  }
   if (event.target.closest('.edit-btn')) { editingId = taskId; addingSubtaskTaskId = null; renderTasks(); return; }
   if (event.target.closest('.cancel-edit-btn')) { editingId = null; renderTasks(); return; }
   if (event.target.closest('.inline-subtask-add')) { addingSubtaskTaskId = taskId; renderTasks(); return; }

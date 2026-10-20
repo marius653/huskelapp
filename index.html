@@ -72,6 +72,7 @@
           <section class="task-toolbar">
             <div class="segmented-control" aria-label="Oppgavefilter">
               <button class="filter active" type="button" data-filter="open">Åpne <span id="openCountBadge" class="filter-count"></span></button>
+              <button class="filter" type="button" data-filter="waiting">Venter <span id="waitingCountBadge" class="filter-count"></span></button>
               <button class="filter" type="button" data-filter="done">Ferdige <span id="doneCountBadge" class="filter-count"></span></button>
             </div>
             <div class="toolbar-actions">
@@ -84,7 +85,7 @@
 
         <aside class="right-rail" aria-label="Oppsummering og snarveier">
           <section class="panel quick-list-panel">
-            <div class="panel-heading"><div class="heading-with-icon"><span class="heading-icon"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m4 6 1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg></span><div><span class="kicker">Fokus</span><h2>Oppgaver (åpne)</h2></div></div></div>
+            <div class="panel-heading"><div class="heading-with-icon"><span class="heading-icon"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m4 6 1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg></span><div><span class="kicker">Fokus</span><h2>Oppgaver</h2></div></div></div>
             <div id="taskOverview"></div>
           </section>
           <section class="panel progress-panel">
