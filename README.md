@@ -14,7 +14,7 @@ HuskelApp er en personlig planleggingsapp bygget med HTML, CSS og vanilla JavaSc
 - Globalt søk i oppgaver og underoppgaver
 - Kalender for inneværende og neste måned
 - Hendelser på valgfri fremtidig dato
-- Hendelsesprikker med hover-info
+- Gule hendelsesprikker med hover-info
 - Hendelsesliste seks måneder frem og nedtelling i dager
 - Egen kalenderfokus-visning
 - Oppgaveliste, ferdigstillelsesring og statistikk
@@ -22,6 +22,7 @@ HuskelApp er en personlig planleggingsapp bygget med HTML, CSS og vanilla JavaSc
 - Lys/mørk/system-tema
 - Eksport/import av komplett JSON-backup
 - Innstillinger
+- Personlige favorittlenker i Verktøy-kortet med eget redigeringsvindu
 - Firebase/Firestore-adapterstruktur for senere synkronisering og innlogging
 
 ## Struktur
@@ -71,6 +72,7 @@ Appen bruker disse eksisterende nøklene slik at tidligere data kan videreføres
 huskelapp_tasks_v1
 huskelapp_events_v1
 huskelapp_settings_v1
+huskelapp_links_v1
 ```
 
 Bruk **Eksporter data** for manuell backup.
