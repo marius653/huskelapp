@@ -433,7 +433,46 @@ body.is-sorting,body.is-sorting * { cursor: grabbing !important; user-select: no
 .favorite-links { display: flex; flex-wrap: wrap; gap: 6px; }
 .favorite-link { max-width: 100%; min-height: 32px; padding: 0 10px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border); border-radius: 9px; background: var(--field); color: var(--text-soft); text-decoration: none; font-size: .71rem; font-weight: 750; }
 .favorite-link:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); background: var(--accent-soft); color: var(--text); }
-.favorite-link-icon { flex: 0 0 auto; color: var(--accent-2); font-size: .8rem; }
+.favorite-link-logo-wrap {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+}
+
+.favorite-link-logo,
+.favorite-link-fallback {
+  position: absolute;
+  inset: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.favorite-link-logo {
+  z-index: 1;
+  display: block;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.favorite-link-fallback {
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--panel-3);
+  color: var(--muted);
+  font-size: .58rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.favorite-link-logo-wrap.has-logo .favorite-link-fallback {
+  display: none;
+}
+
 .favorite-link-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .favorite-links-empty { color: var(--muted); font-size: .7rem; line-height: 1.45; }
 .links-modal { width: min(620px, calc(100% - 28px)); }

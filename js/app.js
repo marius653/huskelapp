@@ -290,16 +290,37 @@ function normalizeLinkUrl(value) {
   }
 }
 
+function faviconUrl(url) {
+  try {
+    const hostname = new URL(url).hostname;
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`;
+  } catch {
+    return '';
+  }
+}
+
 function renderFavoriteLinks() {
   if (!favoriteLinks.length) {
     el.favoriteLinks.innerHTML = '<div class="favorite-links-empty">Ingen favoritter lagt til ennå.</div>';
     return;
   }
-  el.favoriteLinks.innerHTML = favoriteLinks.map(link => `
-    <a class="favorite-link" href="${escapeAttr(link.url)}" target="_blank" rel="noopener noreferrer" aria-label="Åpne ${escapeAttr(link.name)}">
-      <span class="favorite-link-icon" aria-hidden="true">↗</span>
+
+  el.favoriteLinks.innerHTML = favoriteLinks.map(link => {
+    const iconUrl = faviconUrl(link.url);
+
+    return `<a class="favorite-link" href="${escapeAttr(link.url)}" target="_blank" rel="noopener noreferrer" aria-label="Åpne ${escapeAttr(link.name)}">
+      <span class="favorite-link-logo-wrap" aria-hidden="true">
+        ${iconUrl ? `<img class="favorite-link-logo" src="${escapeAttr(iconUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}
+        <span class="favorite-link-fallback">${escapeHtml(link.name.slice(0, 1).toUpperCase())}</span>
+      </span>
       <span class="favorite-link-name">${escapeHtml(link.name)}</span>
-    </a>`).join('');
+    </a>`;
+  }).join('');
+
+  el.favoriteLinks.querySelectorAll('.favorite-link-logo').forEach(image => {
+    image.addEventListener('load', () => image.parentElement?.classList.add('has-logo'), { once: true });
+    image.addEventListener('error', () => image.remove(), { once: true });
+  });
 }
 
 function linkEditorRowMarkup(link = {}) {
