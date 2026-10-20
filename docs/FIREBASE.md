@@ -21,6 +21,10 @@ users/
       {taskId}
     events/
       {eventId}
+    links/
+      {linkId}
+    notes/
+      {noteId}
     meta/
       settings
 ```
@@ -63,5 +67,7 @@ Når Firebase kobles på bør vi lage en engangsmigrering fra:
 - `huskelapp_tasks_v1`
 - `huskelapp_events_v1`
 - `huskelapp_settings_v1`
+- `huskelapp_links_v1`
+- `huskelapp_notes_v1`
 
 Dataene lastes opp under brukerens `uid`, verifiseres, og den lokale kopien beholdes til synkroniseringen er kontrollert.

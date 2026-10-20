@@ -20,6 +20,7 @@
         <button class="nav-link active" type="button" data-view-link="overview"><svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20H5v-9.5"/><path d="M9 20v-6h6v6"/></svg><span>Oversikt</span></button>
         <button class="nav-link" type="button" data-view-link="tasks"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m4 6 1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg><span>Oppgaver</span></button>
         <button class="nav-link" type="button" data-view-link="calendar"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span>Kalender</span></button>
+        <button class="nav-link" type="button" data-view-link="notes"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 11h6M9 15h6"/></svg><span>Notater</span></button>
         <button class="nav-link" type="button" data-view-link="stats"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7M3 20h18"/></svg><span>Statistikk</span></button>
       </nav>
       <div class="topbar-actions">
@@ -121,6 +122,16 @@
       </div>
     </section>
 
+    <section id="notesView" class="view-panel">
+      <div class="focused-view notes-focused-view">
+        <div class="focused-view-head">
+          <div><span class="kicker">Husk</span><h1>Notater</h1></div>
+          <button id="createNoteBtn" class="button button-primary" type="button"><span>+</span> Lag notat</button>
+        </div>
+        <div id="notesList" class="notes-grid" aria-live="polite"></div>
+      </div>
+    </section>
+
     <section id="statsView" class="view-panel">
       <div class="focused-view">
         <div class="focused-view-head"><div><span class="kicker">Analyse</span><h1>Statistikk</h1></div><span id="statsPeriodLabel" class="muted-text"></span></div>
@@ -157,12 +168,30 @@
     </form>
   </dialog>
 
+  <dialog id="noteDialog" class="modal note-modal">
+    <form id="noteForm" class="modal-card">
+      <div class="modal-header">
+        <div><span id="noteDialogKicker" class="kicker">Notat</span><h2 id="noteDialogTitle">Notat</h2></div>
+        <button id="closeNoteBtn" class="icon-button" type="button" aria-label="Lukk">×</button>
+      </div>
+      <div class="modal-body note-modal-body">
+        <textarea id="noteBody" class="note-editor" rows="12" placeholder="Skriv fritt…"></textarea>
+      </div>
+      <div class="modal-actions note-modal-actions">
+        <button id="deleteNoteBtn" class="button button-ghost danger-ghost note-delete-button" type="button" hidden>Slett notat</button>
+        <span class="modal-action-spacer"></span>
+        <button id="cancelNoteBtn" class="button button-secondary" type="button">Avbryt</button>
+        <button class="button button-primary" type="submit">Lagre</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="settingsDialog" class="modal">
     <form id="settingsForm" class="modal-card">
       <div class="modal-header"><div><span class="kicker">HuskelApp</span><h2>Innstillinger</h2></div><button id="closeSettingsBtn" class="icon-button" type="button" aria-label="Lukk">×</button></div>
       <div class="modal-body">
         <div class="form-field"><label for="themeSetting">Tema</label><select id="themeSetting"><option value="dark">Mørk</option><option value="light">Lys</option><option value="system">Følg systemet</option></select></div>
-        <div class="form-field"><label for="defaultViewSetting">Startside</label><select id="defaultViewSetting"><option value="overview">Oversikt</option><option value="tasks">Oppgaver</option><option value="calendar">Kalender</option><option value="stats">Statistikk</option></select></div>
+        <div class="form-field"><label for="defaultViewSetting">Startside</label><select id="defaultViewSetting"><option value="overview">Oversikt</option><option value="tasks">Oppgaver</option><option value="calendar">Kalender</option><option value="notes">Notater</option><option value="stats">Statistikk</option></select></div>
         <label class="toggle-row"><span><strong>Bekreft før sletting</strong><small>Vis bekreftelse når oppgaver eller hendelser slettes.</small></span><input id="confirmDeleteSetting" type="checkbox" /></label>
       </div>
       <div class="modal-actions"><button id="cancelSettingsBtn" class="button button-secondary" type="button">Avbryt</button><button class="button button-primary" type="submit">Lagre innstillinger</button></div>

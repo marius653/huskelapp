@@ -8,6 +8,7 @@ const el = {
   navLinks: $$('[data-view-link]'),
   dashboardView: $('#dashboardView'),
   calendarFocusView: $('#calendarFocusView'),
+  notesView: $('#notesView'),
   statsView: $('#statsView'),
   globalSearch: $('#globalSearch'),
   themeToggle: $('#themeToggle'),
@@ -56,6 +57,16 @@ const el = {
   addLinkRowBtn: $('#addLinkRowBtn'),
   closeLinksBtn: $('#closeLinksBtn'),
   cancelLinksBtn: $('#cancelLinksBtn'),
+  notesList: $('#notesList'),
+  createNoteBtn: $('#createNoteBtn'),
+  noteDialog: $('#noteDialog'),
+  noteForm: $('#noteForm'),
+  noteDialogKicker: $('#noteDialogKicker'),
+  noteDialogTitle: $('#noteDialogTitle'),
+  noteBody: $('#noteBody'),
+  deleteNoteBtn: $('#deleteNoteBtn'),
+  closeNoteBtn: $('#closeNoteBtn'),
+  cancelNoteBtn: $('#cancelNoteBtn'),
   eventDialog: $('#eventDialog'),
   eventForm: $('#eventForm'),
   eventDate: $('#eventDate'),
@@ -77,6 +88,7 @@ let store;
 let tasks = [];
 let calendarEvents = [];
 let favoriteLinks = [];
+let notes = [];
 let settings = {
   theme: 'dark',
   defaultView: 'overview',
@@ -88,6 +100,8 @@ let currentView = 'overview';
 let searchQuery = '';
 let editingId = null;
 let addingSubtaskTaskId = null;
+let activeNoteId = null;
+let activeNoteTaskId = null;
 let dragState = null;
 
 function localDateString(date = new Date()) {
@@ -212,6 +226,7 @@ async function persistTasks() { await store.saveTasks(tasks); }
 async function persistEvents() { await store.saveEvents(calendarEvents); }
 async function persistSettings() { await store.saveSettings(settings); }
 async function persistLinks() { await store.saveLinks(favoriteLinks); }
+async function persistNotes() { await store.saveNotes(notes); }
 
 function queryMatchesTask(task) {
   if (!searchQuery) return true;
@@ -353,6 +368,152 @@ function closeLinksDialog() {
   if (el.linksDialog.open) el.linksDialog.close();
 }
 
+function migrateNote(note, index) {
+  return {
+    id: note?.id || createId(`note-${index}`),
+    taskId: note?.taskId || null,
+    body: String(note?.body || ''),
+    createdAt: Number(note?.createdAt) || Date.now() + index,
+    updatedAt: Number(note?.updatedAt) || Number(note?.createdAt) || Date.now() + index
+  };
+}
+
+function noteTask(note) {
+  return note.taskId ? tasks.find(task => task.id === note.taskId) : null;
+}
+
+function standaloneNoteParts(note) {
+  const lines = String(note.body || '').trim().split(/\r?\n/);
+  const firstContentIndex = lines.findIndex(line => line.trim());
+  if (firstContentIndex < 0) return { title: 'Notat', body: '' };
+
+  const firstLine = lines[firstContentIndex].trim();
+  const title = firstLine.length > 70 ? `${firstLine.slice(0, 67)}…` : firstLine;
+  const body = lines.slice(firstContentIndex + 1).join('\n').trim();
+  return { title, body };
+}
+
+function noteDisplay(note) {
+  const task = noteTask(note);
+  if (task) return { title: task.text, body: note.body.trim(), type: 'Oppgave', taskNote: true };
+
+  const standalone = standaloneNoteParts(note);
+  return { title: standalone.title, body: standalone.body, type: 'Eget notat', taskNote: false };
+}
+
+function formatNoteTimestamp(value) {
+  return new Intl.DateTimeFormat('nb-NO', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(value));
+}
+
+function visibleNotes() {
+  return notes
+    .filter(note => note.body.trim() && (!note.taskId || noteTask(note)))
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+function renderNotes() {
+  if (!el.notesList) return;
+  const visible = visibleNotes();
+
+  if (!visible.length) {
+    el.notesList.innerHTML = '<div class="empty-state">Ingen notater ennå. Lag et eget notat, eller skriv et notat på en oppgave.</div>';
+    return;
+  }
+
+  el.notesList.innerHTML = visible.map(note => {
+    const display = noteDisplay(note);
+    return `<article class="panel note-card" data-note-id="${escapeAttr(note.id)}">
+      <div class="note-card-head">
+        <div class="note-card-title-wrap">
+          <span class="note-type ${display.taskNote ? 'task-note' : ''}">${display.type}</span>
+          <h2 class="note-card-title">${escapeHtml(display.title)}</h2>
+        </div>
+        <span class="note-card-time">${escapeHtml(formatNoteTimestamp(note.updatedAt))}</span>
+      </div>
+      ${display.body ? `<p class="note-card-body">${escapeHtml(display.body)}</p>` : '<div class="note-card-body"></div>'}
+      <div class="note-card-actions">
+        <button class="note-card-action edit-note-btn" type="button">Rediger</button>
+        <button class="note-card-action delete delete-note-card-btn" type="button">Slett</button>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+function openNoteDialog({ noteId = null, taskId = null } = {}) {
+  const existing = noteId
+    ? notes.find(note => note.id === noteId)
+    : taskId
+      ? notes.find(note => note.taskId === taskId)
+      : null;
+
+  activeNoteId = existing?.id || null;
+  activeNoteTaskId = existing?.taskId || taskId || null;
+
+  const task = activeNoteTaskId ? tasks.find(item => item.id === activeNoteTaskId) : null;
+  el.noteDialogKicker.textContent = task ? 'Oppgavenotat' : 'Notat';
+  el.noteDialogTitle.textContent = task ? task.text : existing ? 'Rediger notat' : 'Nytt notat';
+  el.noteBody.value = existing?.body || '';
+  el.deleteNoteBtn.hidden = !existing;
+  el.noteDialog.showModal();
+
+  requestAnimationFrame(() => {
+    el.noteBody.focus();
+    el.noteBody.setSelectionRange(el.noteBody.value.length, el.noteBody.value.length);
+  });
+}
+
+function closeNoteDialog() {
+  if (el.noteDialog.open) el.noteDialog.close();
+  activeNoteId = null;
+  activeNoteTaskId = null;
+}
+
+async function saveActiveNote() {
+  const body = el.noteBody.value.trim();
+  const existing = activeNoteId ? notes.find(note => note.id === activeNoteId) : null;
+
+  if (!body) {
+    if (existing) {
+      notes = notes.filter(note => note.id !== existing.id);
+      await persistNotes();
+      renderNotes();
+    }
+    closeNoteDialog();
+    return;
+  }
+
+  if (existing) {
+    existing.body = body;
+    existing.updatedAt = Date.now();
+  } else {
+    notes.push({
+      id: createId('note'),
+      taskId: activeNoteTaskId || null,
+      body,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+  }
+
+  await persistNotes();
+  renderNotes();
+  closeNoteDialog();
+}
+
+async function deleteNoteById(noteId) {
+  const note = notes.find(item => item.id === noteId);
+  if (!note || !shouldConfirm('Slette notatet?')) return false;
+  notes = notes.filter(item => item.id !== noteId);
+  await persistNotes();
+  renderNotes();
+  return true;
+}
+
 function renderCounts() {
   const active = tasks.filter(task => task.status !== 'Ferdig' && task.status !== 'Venter').length;
   const waiting = tasks.filter(task => task.status === 'Venter').length;
@@ -461,6 +622,7 @@ function renderTasks() {
         ${task.status !== 'Ferdig' ? '<button class="complete-task-btn" type="button">Ferdig</button>' : ''}
         <select class="status-select" aria-label="Endre status">${taskStatusOptions(task.status)}</select>
         <div class="task-action-row"><button class="task-action-button edit-btn" type="button">Rediger</button><button class="task-action-button delete delete-btn" type="button">Slett</button></div>
+        <button class="task-action-button task-note-btn view-note-btn ${notes.some(note => note.taskId === task.id && note.body.trim()) ? 'has-note' : ''}" type="button">Vis notat</button>
       </div>
     </article>`;
   }).join('');
@@ -594,9 +756,11 @@ function showView(view) {
   el.navLinks.forEach(link => link.classList.toggle('active', link.dataset.viewLink === view));
   el.dashboardView.classList.toggle('active', view === 'overview' || view === 'tasks');
   el.calendarFocusView.classList.toggle('active', view === 'calendar');
+  el.notesView.classList.toggle('active', view === 'notes');
   el.statsView.classList.toggle('active', view === 'stats');
   if (view === 'stats') renderStats();
   if (view === 'calendar') renderCalendarArea();
+  if (view === 'notes') renderNotes();
 }
 
 function openEventDialog() {
@@ -707,13 +871,16 @@ async function clearCompletedTasks() {
   const doneTasks = tasks.filter(task => task.status === 'Ferdig');
   if (!doneTasks.length) return;
   if (!shouldConfirm(`Fjerne ${doneTasks.length} ferdige ${doneTasks.length === 1 ? 'oppgave' : 'oppgaver'}?`)) return;
+  const removedIds = new Set(doneTasks.map(task => task.id));
   tasks = tasks.filter(task => task.status !== 'Ferdig');
-  await persistTasks();
+  notes = notes.filter(note => !note.taskId || !removedIds.has(note.taskId));
+  await Promise.all([persistTasks(), persistNotes()]);
   renderTasks();
+  renderNotes();
 }
 
 function exportData() {
-  const payload = { app: 'HuskelApp', schemaVersion: 2, exportedAt: new Date().toISOString(), tasks, events: calendarEvents, links: favoriteLinks, settings };
+  const payload = { app: 'HuskelApp', schemaVersion: 3, exportedAt: new Date().toISOString(), tasks, events: calendarEvents, links: favoriteLinks, notes, settings };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -728,7 +895,7 @@ function exportData() {
 async function importDataFile(file) {
   const data = JSON.parse(await file.text());
   if (!data || !Array.isArray(data.tasks) || !Array.isArray(data.events)) throw new Error('Ugyldig HuskelApp-backup.');
-  if (!confirm('Import erstatter nåværende oppgaver og hendelser. Fortsette?')) return;
+  if (!confirm('Import erstatter nåværende oppgaver, hendelser, lenker og notater. Fortsette?')) return;
   tasks = data.tasks.map(migrateTask);
   calendarEvents = data.events.map((event, index) => ({
     id: event.id || createId(`event-${index}`),
@@ -744,14 +911,16 @@ async function importDataFile(file) {
         createdAt: link.createdAt || Date.now() + index
       })).filter(link => link.name && link.url)
     : [];
+  notes = Array.isArray(data.notes) ? data.notes.map(migrateNote) : [];
   if (data.settings && typeof data.settings === 'object') settings = { ...settings, ...data.settings };
   ensureInitialOrder();
-  await Promise.all([persistTasks(), persistEvents(), persistLinks(), persistSettings()]);
+  await Promise.all([persistTasks(), persistEvents(), persistLinks(), persistNotes(), persistSettings()]);
   applyTheme(settings.theme);
   el.sortMode.value = settings.sortMode;
   renderTasks();
   renderCalendarArea();
   renderFavoriteLinks();
+  renderNotes();
   showView(currentView);
 }
 
@@ -816,6 +985,7 @@ el.taskList.addEventListener('click', async event => {
     renderTasks();
     return;
   }
+  if (event.target.closest('.view-note-btn')) { openNoteDialog({ taskId }); return; }
   if (event.target.closest('.edit-btn')) { editingId = taskId; addingSubtaskTaskId = null; renderTasks(); return; }
   if (event.target.closest('.cancel-edit-btn')) { editingId = null; renderTasks(); return; }
   if (event.target.closest('.inline-subtask-add')) { addingSubtaskTaskId = taskId; renderTasks(); return; }
@@ -824,8 +994,10 @@ el.taskList.addEventListener('click', async event => {
     const task = tasks.find(item => item.id === taskId);
     if (task && shouldConfirm(`Slette oppgaven "${task.text}"?`)) {
       tasks = tasks.filter(item => item.id !== taskId);
-      await persistTasks();
+      notes = notes.filter(note => note.taskId !== taskId);
+      await Promise.all([persistTasks(), persistNotes()]);
       renderTasks();
+      renderNotes();
     }
   }
 });
@@ -1003,6 +1175,31 @@ el.linksForm.addEventListener('submit', async event => {
   closeLinksDialog();
 });
 
+el.createNoteBtn.addEventListener('click', () => openNoteDialog());
+el.closeNoteBtn.addEventListener('click', closeNoteDialog);
+el.cancelNoteBtn.addEventListener('click', closeNoteDialog);
+el.noteDialog.addEventListener('click', event => { if (event.target === el.noteDialog) closeNoteDialog(); });
+el.noteForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  await saveActiveNote();
+});
+el.deleteNoteBtn.addEventListener('click', async () => {
+  if (!activeNoteId) return;
+  if (await deleteNoteById(activeNoteId)) closeNoteDialog();
+});
+el.notesList.addEventListener('click', async event => {
+  const card = event.target.closest('.note-card');
+  if (!card) return;
+  const noteId = card.dataset.noteId;
+  if (event.target.closest('.edit-note-btn')) {
+    openNoteDialog({ noteId });
+    return;
+  }
+  if (event.target.closest('.delete-note-card-btn')) {
+    await deleteNoteById(noteId);
+  }
+});
+
 el.settingsBtn.addEventListener('click', openSettingsDialog);
 el.closeSettingsBtn.addEventListener('click', closeSettingsDialog);
 el.cancelSettingsBtn.addEventListener('click', closeSettingsDialog);
@@ -1023,8 +1220,8 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
 
 async function init() {
   store = await createStore();
-  const [storedTasks, storedEvents, storedLinks, storedSettings] = await Promise.all([
-    store.getTasks(), store.getEvents(), store.getLinks(), store.getSettings()
+  const [storedTasks, storedEvents, storedLinks, storedNotes, storedSettings] = await Promise.all([
+    store.getTasks(), store.getEvents(), store.getLinks(), store.getNotes(), store.getSettings()
   ]);
   tasks = storedTasks.map(migrateTask);
   calendarEvents = storedEvents.map((event, index) => ({ id: event.id || createId(`event-${index}`), name: event.name || '', date: event.date || localDateString(), createdAt: event.createdAt || Date.now() + index }));
@@ -1034,6 +1231,7 @@ async function init() {
     url: normalizeLinkUrl(link.url),
     createdAt: link.createdAt || Date.now() + index
   })).filter(link => link.name && link.url);
+  notes = storedNotes.map(migrateNote);
   settings = { ...settings, ...(storedSettings && typeof storedSettings === 'object' ? storedSettings : {}) };
   ensureInitialOrder();
   await persistTasks();
@@ -1045,6 +1243,7 @@ async function init() {
   renderTasks();
   renderCalendarArea();
   renderFavoriteLinks();
+  renderNotes();
   renderStats();
   showView(settings.defaultView);
   setInterval(() => { renderCalendarArea(); renderTasks(); }, 60000);
