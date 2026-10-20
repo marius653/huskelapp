@@ -23,6 +23,7 @@ HuskelApp er en personlig planleggingsapp bygget med HTML, CSS og vanilla JavaSc
 - Eksport/import av komplett JSON-backup
 - Innstillinger
 - Personlige favorittlenker i Verktøy-kortet med eget redigeringsvindu
+- Egen notatside med frie notater og skjulte notater knyttet til oppgaver
 - Firebase/Firestore-adapterstruktur for senere synkronisering og innlogging
 
 ## Struktur
@@ -73,6 +74,7 @@ huskelapp_tasks_v1
 huskelapp_events_v1
 huskelapp_settings_v1
 huskelapp_links_v1
+huskelapp_notes_v1
 ```
 
 Bruk **Eksporter data** for manuell backup.
