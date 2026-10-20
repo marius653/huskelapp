@@ -48,6 +48,14 @@ const el = {
   importFileInput: $('#importFileInput'),
   clearDoneShortcut: $('#clearDoneShortcut'),
   settingsBtn: $('#settingsBtn'),
+  favoriteLinks: $('#favoriteLinks'),
+  manageLinksBtn: $('#manageLinksBtn'),
+  linksDialog: $('#linksDialog'),
+  linksForm: $('#linksForm'),
+  linksEditorList: $('#linksEditorList'),
+  addLinkRowBtn: $('#addLinkRowBtn'),
+  closeLinksBtn: $('#closeLinksBtn'),
+  cancelLinksBtn: $('#cancelLinksBtn'),
   eventDialog: $('#eventDialog'),
   eventForm: $('#eventForm'),
   eventDate: $('#eventDate'),
@@ -68,6 +76,7 @@ const el = {
 let store;
 let tasks = [];
 let calendarEvents = [];
+let favoriteLinks = [];
 let settings = {
   theme: 'dark',
   defaultView: 'overview',
@@ -202,6 +211,7 @@ function mergeEditedSubtasks(task, value) {
 async function persistTasks() { await store.saveTasks(tasks); }
 async function persistEvents() { await store.saveEvents(calendarEvents); }
 async function persistSettings() { await store.saveSettings(settings); }
+async function persistLinks() { await store.saveLinks(favoriteLinks); }
 
 function queryMatchesTask(task) {
   if (!searchQuery) return true;
@@ -266,6 +276,60 @@ function priorityOptions(current) {
 
 function shouldConfirm(message) {
   return !settings.confirmDelete || confirm(message);
+}
+
+function normalizeLinkUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const parsed = new URL(candidate);
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+  } catch {
+    return '';
+  }
+}
+
+function renderFavoriteLinks() {
+  if (!favoriteLinks.length) {
+    el.favoriteLinks.innerHTML = '<div class="favorite-links-empty">Ingen favoritter lagt til ennå.</div>';
+    return;
+  }
+  el.favoriteLinks.innerHTML = favoriteLinks.map(link => `
+    <a class="favorite-link" href="${escapeAttr(link.url)}" target="_blank" rel="noopener noreferrer" aria-label="Åpne ${escapeAttr(link.name)}">
+      <span class="favorite-link-icon" aria-hidden="true">↗</span>
+      <span class="favorite-link-name">${escapeHtml(link.name)}</span>
+    </a>`).join('');
+}
+
+function linkEditorRowMarkup(link = {}) {
+  return `<div class="link-editor-row" data-id="${escapeAttr(link.id || '')}">
+    <div class="form-field link-name-field">
+      <label>Kallenavn</label>
+      <input class="link-name-input" type="text" maxlength="40" autocomplete="off" placeholder="F.eks. Gmail" value="${escapeAttr(link.name || '')}" required />
+    </div>
+    <div class="form-field link-url-field">
+      <label>Lenke</label>
+      <input class="link-url-input" type="text" inputmode="url" autocomplete="url" placeholder="https://…" value="${escapeAttr(link.url || '')}" required />
+    </div>
+    <button class="remove-link-row" type="button" aria-label="Fjern lenke" title="Fjern">×</button>
+  </div>`;
+}
+
+function addLinkEditorRow(link = {}) {
+  el.linksEditorList.insertAdjacentHTML('beforeend', linkEditorRowMarkup(link));
+  const rows = el.linksEditorList.querySelectorAll('.link-editor-row');
+  rows[rows.length - 1]?.querySelector('.link-name-input')?.focus();
+}
+
+function openLinksDialog() {
+  el.linksEditorList.innerHTML = favoriteLinks.map(link => linkEditorRowMarkup(link)).join('');
+  if (!favoriteLinks.length) addLinkEditorRow();
+  el.linksDialog.showModal();
+}
+
+function closeLinksDialog() {
+  if (el.linksDialog.open) el.linksDialog.close();
 }
 
 function renderCounts() {
@@ -628,7 +692,7 @@ async function clearCompletedTasks() {
 }
 
 function exportData() {
-  const payload = { app: 'HuskelApp', schemaVersion: 1, exportedAt: new Date().toISOString(), tasks, events: calendarEvents, settings };
+  const payload = { app: 'HuskelApp', schemaVersion: 2, exportedAt: new Date().toISOString(), tasks, events: calendarEvents, links: favoriteLinks, settings };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -651,13 +715,22 @@ async function importDataFile(file) {
     date: event.date || localDateString(),
     createdAt: event.createdAt || Date.now() + index
   }));
+  favoriteLinks = Array.isArray(data.links)
+    ? data.links.map((link, index) => ({
+        id: link.id || createId(`link-${index}`),
+        name: String(link.name || '').trim(),
+        url: normalizeLinkUrl(link.url),
+        createdAt: link.createdAt || Date.now() + index
+      })).filter(link => link.name && link.url)
+    : [];
   if (data.settings && typeof data.settings === 'object') settings = { ...settings, ...data.settings };
   ensureInitialOrder();
-  await Promise.all([persistTasks(), persistEvents(), persistSettings()]);
+  await Promise.all([persistTasks(), persistEvents(), persistLinks(), persistSettings()]);
   applyTheme(settings.theme);
   el.sortMode.value = settings.sortMode;
   renderTasks();
   renderCalendarArea();
+  renderFavoriteLinks();
   showView(currentView);
 }
 
@@ -866,6 +939,49 @@ el.importFileInput.addEventListener('change', async () => {
   try { await importDataFile(file); } catch (error) { alert(error.message || 'Kunne ikke importere filen.'); }
 });
 
+el.manageLinksBtn.addEventListener('click', openLinksDialog);
+el.closeLinksBtn.addEventListener('click', closeLinksDialog);
+el.cancelLinksBtn.addEventListener('click', closeLinksDialog);
+el.linksDialog.addEventListener('click', event => { if (event.target === el.linksDialog) closeLinksDialog(); });
+el.addLinkRowBtn.addEventListener('click', () => addLinkEditorRow());
+el.linksEditorList.addEventListener('click', event => {
+  const button = event.target.closest('.remove-link-row');
+  if (!button) return;
+  button.closest('.link-editor-row')?.remove();
+  if (!el.linksEditorList.children.length) addLinkEditorRow();
+});
+el.linksForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  const nextLinks = [];
+  const rows = [...el.linksEditorList.querySelectorAll('.link-editor-row')];
+
+  for (const [index, row] of rows.entries()) {
+    const name = row.querySelector('.link-name-input').value.trim();
+    const urlInput = row.querySelector('.link-url-input');
+    const url = normalizeLinkUrl(urlInput.value);
+
+    if (!name && !urlInput.value.trim()) continue;
+    if (!name || !url) {
+      urlInput.setCustomValidity(url ? '' : 'Skriv inn en gyldig http- eller https-lenke.');
+      urlInput.reportValidity();
+      urlInput.setCustomValidity('');
+      return;
+    }
+
+    nextLinks.push({
+      id: row.dataset.id || createId(`link-${index}`),
+      name,
+      url,
+      createdAt: favoriteLinks.find(link => link.id === row.dataset.id)?.createdAt || Date.now() + index
+    });
+  }
+
+  favoriteLinks = nextLinks;
+  await persistLinks();
+  renderFavoriteLinks();
+  closeLinksDialog();
+});
+
 el.settingsBtn.addEventListener('click', openSettingsDialog);
 el.closeSettingsBtn.addEventListener('click', closeSettingsDialog);
 el.cancelSettingsBtn.addEventListener('click', closeSettingsDialog);
@@ -886,9 +1002,17 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
 
 async function init() {
   store = await createStore();
-  const [storedTasks, storedEvents, storedSettings] = await Promise.all([store.getTasks(), store.getEvents(), store.getSettings()]);
+  const [storedTasks, storedEvents, storedLinks, storedSettings] = await Promise.all([
+    store.getTasks(), store.getEvents(), store.getLinks(), store.getSettings()
+  ]);
   tasks = storedTasks.map(migrateTask);
   calendarEvents = storedEvents.map((event, index) => ({ id: event.id || createId(`event-${index}`), name: event.name || '', date: event.date || localDateString(), createdAt: event.createdAt || Date.now() + index }));
+  favoriteLinks = storedLinks.map((link, index) => ({
+    id: link.id || createId(`link-${index}`),
+    name: String(link.name || '').trim(),
+    url: normalizeLinkUrl(link.url),
+    createdAt: link.createdAt || Date.now() + index
+  })).filter(link => link.name && link.url);
   settings = { ...settings, ...(storedSettings && typeof storedSettings === 'object' ? storedSettings : {}) };
   ensureInitialOrder();
   await persistTasks();
@@ -899,6 +1023,7 @@ async function init() {
   el.eventDate.min = localDateString();
   renderTasks();
   renderCalendarArea();
+  renderFavoriteLinks();
   renderStats();
   showView(settings.defaultView);
   setInterval(() => { renderCalendarArea(); renderTasks(); }, 60000);

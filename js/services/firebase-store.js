@@ -4,11 +4,13 @@
   Appen bruker samme grensesnitt uansett datakilde:
     getTasks / saveTasks
     getEvents / saveEvents
+    getLinks / saveLinks
     getSettings / saveSettings
 
   Anbefalt struktur:
     users/{uid}/tasks/{taskId}
     users/{uid}/events/{eventId}
+    users/{uid}/links/{linkId}
     users/{uid}/meta/settings
 
   Se docs/FIREBASE.md.

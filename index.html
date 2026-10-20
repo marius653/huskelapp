@@ -100,6 +100,12 @@
               <button id="clearDoneShortcut" class="shortcut-button" type="button"><span class="shortcut-icon">✓</span><span>Tøm ferdige oppgaver</span><span class="chevron">›</span></button>
               <button id="settingsBtn" class="shortcut-button" type="button"><span class="shortcut-icon">⚙</span><span>Innstillinger</span><span class="chevron">›</span></button>
             </div>
+            <div class="tools-divider" aria-hidden="true"></div>
+            <div class="favorite-links-head">
+              <div><span class="kicker">Favoritter</span><h3>Nyttige lenker</h3></div>
+              <button id="manageLinksBtn" class="mini-action-button" type="button">Rediger</button>
+            </div>
+            <div id="favoriteLinks" class="favorite-links" aria-live="polite"></div>
           </section>
         </aside>
       </div>
@@ -130,6 +136,24 @@
       <div class="modal-header"><div><span class="kicker">Kalender</span><h2>Ny hendelse</h2></div><button id="closeEventBtn" class="icon-button" type="button" aria-label="Lukk">×</button></div>
       <div class="modal-body"><div class="form-field"><label for="eventDate">Dato</label><input id="eventDate" type="date" required /></div><div class="form-field"><label for="eventName">Navn på hendelse</label><input id="eventName" type="text" maxlength="120" autocomplete="off" placeholder="F.eks. møte, frist eller reise" required /></div></div>
       <div class="modal-actions"><button id="cancelEventBtn" class="button button-secondary" type="button">Avbryt</button><button class="button button-primary" type="submit">Lagre hendelse</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="linksDialog" class="modal links-modal">
+    <form id="linksForm" class="modal-card">
+      <div class="modal-header">
+        <div><span class="kicker">Favoritter</span><h2>Nyttige lenker</h2></div>
+        <button id="closeLinksBtn" class="icon-button" type="button" aria-label="Lukk">×</button>
+      </div>
+      <div class="modal-body links-modal-body">
+        <p class="modal-help">Gi hver lenke et kort kallenavn. Bare kallenavnet vises på dashbordet.</p>
+        <div id="linksEditorList" class="links-editor-list"></div>
+        <button id="addLinkRowBtn" class="button button-secondary add-link-row" type="button"><span>+</span> Legg til lenke</button>
+      </div>
+      <div class="modal-actions">
+        <button id="cancelLinksBtn" class="button button-secondary" type="button">Avbryt</button>
+        <button class="button button-primary" type="submit">Lagre lenker</button>
+      </div>
     </form>
   </dialog>
 
