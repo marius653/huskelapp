@@ -5,12 +5,14 @@
     getTasks / saveTasks
     getEvents / saveEvents
     getLinks / saveLinks
+    getNotes / saveNotes
     getSettings / saveSettings
 
   Anbefalt struktur:
     users/{uid}/tasks/{taskId}
     users/{uid}/events/{eventId}
     users/{uid}/links/{linkId}
+    users/{uid}/notes/{noteId}
     users/{uid}/meta/settings
 
   Se docs/FIREBASE.md.
