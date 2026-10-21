@@ -6,7 +6,10 @@ const $$ = selector => [...document.querySelectorAll(selector)];
 
 const el = {
   body: document.body,
-  navLinks: $$('[data-view-link]'),
+  authGate: $('#authGate'),
+  landingAuthButton: $('#landingAuthButton'),
+  authGateStatus: $('#authGateStatus'),
+  navLinks: $('[data-view-link]'),
   dashboardView: $('#dashboardView'),
   calendarFocusView: $('#calendarFocusView'),
   notesView: $('#notesView'),
@@ -113,6 +116,10 @@ let dragState = null;
 
 function renderAuthState(user) {
   currentUser = user;
+  el.body.dataset.authState = user ? 'signed-in' : 'signed-out';
+  el.landingAuthButton.disabled = false;
+  el.landingAuthButton.textContent = 'Logg inn med Google';
+  el.authGateStatus.textContent = 'Du må være logget inn for å bruke HuskelApp.';
 
   if (user) {
     const name = user.displayName || 'Innlogget bruker';
@@ -128,7 +135,7 @@ function renderAuthState(user) {
   }
 
   el.profileName.textContent = 'Ikke logget inn';
-  el.profileEmail.textContent = 'Data lagres lokalt';
+  el.profileEmail.textContent = 'Logg inn for å åpne HuskelApp';
   el.profileAvatarLarge.textContent = 'H';
   el.profileButton.querySelector('span').textContent = 'H';
   el.profileButton.title = 'Konto';
@@ -1177,6 +1184,28 @@ el.authButton.addEventListener('click', async () => {
   }
 });
 
+el.landingAuthButton.addEventListener('click', async () => {
+  el.landingAuthButton.disabled = true;
+  el.landingAuthButton.textContent = 'Åpner Google…';
+  el.authGateStatus.textContent = 'Fullfør innloggingen i Google-vinduet.';
+
+  try {
+    await authService.signInWithGoogle();
+  } catch (error) {
+    console.error(error);
+    if (error?.code !== 'auth/popup-closed-by-user') {
+      el.authGateStatus.textContent = authErrorMessage(error);
+    } else {
+      el.authGateStatus.textContent = 'Innloggingen ble avbrutt.';
+    }
+  } finally {
+    if (!currentUser) {
+      el.landingAuthButton.disabled = false;
+      el.landingAuthButton.textContent = 'Logg inn med Google';
+    }
+  }
+});
+
 document.addEventListener('click', event => {
   if (!event.target.closest('.profile-menu')) {
     el.profilePopover.hidden = true;
@@ -1314,5 +1343,9 @@ async function init() {
 
 init().catch(error => {
   console.error(error);
+  el.body.dataset.authState = 'signed-out';
+  el.landingAuthButton.disabled = false;
+  el.landingAuthButton.textContent = 'Prøv innlogging igjen';
+  el.authGateStatus.textContent = 'HuskelApp kunne ikke starte innloggingen. Kontroller Firebase-oppsettet og prøv igjen.';
   el.taskList.innerHTML = '<div class="empty-state">Appen kunne ikke starte. Åpne utviklerkonsollen for detaljer.</div>';
 });
