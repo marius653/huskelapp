@@ -1,4 +1,5 @@
 import { createStore } from "./services/store.js";
+import { createAuthService } from "./services/auth-service.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -14,6 +15,10 @@ const el = {
   themeToggle: $('#themeToggle'),
   profileButton: $('#profileButton'),
   profilePopover: $('#profilePopover'),
+  profileName: $('#profileName'),
+  profileEmail: $('#profileEmail'),
+  profileAvatarLarge: $('#profileAvatarLarge'),
+  authButton: $('#authButton'),
   taskForm: $('#taskForm'),
   taskText: $('#taskText'),
   taskSubtasks: $('#taskSubtasks'),
@@ -85,6 +90,8 @@ const el = {
 };
 
 let store;
+let authService;
+let currentUser = null;
 let tasks = [];
 let calendarEvents = [];
 let favoriteLinks = [];
@@ -103,6 +110,40 @@ let addingSubtaskTaskId = null;
 let activeNoteId = null;
 let activeNoteTaskId = null;
 let dragState = null;
+
+function renderAuthState(user) {
+  currentUser = user;
+
+  if (user) {
+    const name = user.displayName || 'Innlogget bruker';
+    const initial = name.trim().slice(0, 1).toUpperCase() || 'H';
+
+    el.profileName.textContent = name;
+    el.profileEmail.textContent = user.email || 'Innlogget med Google';
+    el.profileAvatarLarge.textContent = initial;
+    el.profileButton.querySelector('span').textContent = initial;
+    el.profileButton.title = `Konto – ${name}`;
+    el.authButton.textContent = 'Logg ut';
+    return;
+  }
+
+  el.profileName.textContent = 'Ikke logget inn';
+  el.profileEmail.textContent = 'Data lagres lokalt';
+  el.profileAvatarLarge.textContent = 'H';
+  el.profileButton.querySelector('span').textContent = 'H';
+  el.profileButton.title = 'Konto';
+  el.authButton.textContent = 'Logg inn med Google';
+}
+
+function authErrorMessage(error) {
+  if (error?.code === 'auth/unauthorized-domain') {
+    return 'Dette domenet er ikke autorisert i Firebase Authentication. Legg preview-domenet til under Authorized domains.';
+  }
+  if (error?.code === 'auth/popup-blocked') {
+    return 'Nettleseren blokkerte innloggingsvinduet. Tillat popup-vinduer og prøv igjen.';
+  }
+  return 'Kunne ikke logge inn. Se utviklerkonsollen for detaljer.';
+}
 
 function localDateString(date = new Date()) {
   const year = date.getFullYear();
@@ -1117,6 +1158,25 @@ el.profileButton.addEventListener('click', () => {
   el.profileButton.setAttribute('aria-expanded', String(!open));
 });
 
+el.authButton.addEventListener('click', async () => {
+  el.authButton.disabled = true;
+
+  try {
+    if (currentUser) {
+      await authService.signOut();
+      el.profilePopover.hidden = true;
+      el.profileButton.setAttribute('aria-expanded', 'false');
+    } else {
+      await authService.signInWithGoogle();
+    }
+  } catch (error) {
+    console.error(error);
+    if (error?.code !== 'auth/popup-closed-by-user') alert(authErrorMessage(error));
+  } finally {
+    el.authButton.disabled = false;
+  }
+});
+
 document.addEventListener('click', event => {
   if (!event.target.closest('.profile-menu')) {
     el.profilePopover.hidden = true;
@@ -1219,6 +1279,9 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
 });
 
 async function init() {
+  authService = createAuthService();
+  authService.onAuthStateChanged(user => renderAuthState(user));
+
   store = await createStore();
   const [storedTasks, storedEvents, storedLinks, storedNotes, storedSettings] = await Promise.all([
     store.getTasks(), store.getEvents(), store.getLinks(), store.getNotes(), store.getSettings()
