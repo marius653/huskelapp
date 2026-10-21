@@ -29,8 +29,16 @@
         <div class="profile-menu">
           <button id="profileButton" class="avatar-button" type="button" aria-expanded="false" aria-controls="profilePopover" title="Konto"><span>H</span></button>
           <div id="profilePopover" class="profile-popover" hidden>
-            <div class="profile-card-head"><div class="avatar-large">H</div><div><strong>Lokal bruker</strong><span>Ingen innlogging aktiv</span></div></div>
-            <div class="profile-note">Firebase Authentication er klargjort i prosjektstrukturen og kan kobles inn senere.</div>
+            <div class="profile-card-head">
+              <div id="profileAvatarLarge" class="avatar-large">H</div>
+              <div>
+                <strong id="profileName">Ikke logget inn</strong>
+                <span id="profileEmail">Data lagres lokalt</span>
+              </div>
+            </div>
+            <div class="profile-note">
+              <button id="authButton" class="button button-primary profile-auth-button" type="button">Logg inn med Google</button>
+            </div>
           </div>
         </div>
       </div>
