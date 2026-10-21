@@ -1386,8 +1386,8 @@ el.landingAuthButton.addEventListener('click', async () => {
   }
 
   el.landingAuthButton.disabled = true;
-  el.landingAuthButton.textContent = 'Åpner Google…';
-  el.authGateStatus.textContent = 'Fullfør innloggingen i Google-vinduet.';
+  el.landingAuthButton.textContent = 'Starter Google-innlogging…';
+  el.authGateStatus.textContent = 'Fullfør innloggingen hos Google. Du blir sendt tilbake til HuskelApp.';
 
   try {
     await authService.signInWithGoogle();
@@ -1509,6 +1509,13 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
 
 async function init() {
   authService = createAuthService();
+
+  try {
+    await authService.completeRedirectSignIn();
+  } catch (error) {
+    console.error('Google redirect sign-in failed:', error);
+  }
+
   authService.onAuthStateChanged(user => {
     void handleAuthStateChange(user);
   });
