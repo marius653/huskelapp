@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feat/firebase-auth-firestore
   workflow_dispatch:
 
 permissions:
