@@ -33,20 +33,13 @@ users/
 
 Google-innlogging er et naturlig førstesteg. E-post/passord kan også aktiveres. All data bør ligge under den innloggede brukerens `uid`.
 
-## Security Rules – utgangspunkt
+## Security Rules
 
-```text
-rules_version = '2';
+De validerte reglene ligger i `firestore.rules`.
 
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId;
-    }
-  }
-}
-```
+Reglene krever innlogging, begrenser all tilgang til den innloggede brukerens egen `uid`, validerer grunnleggende felttyper og lengder, og avviser alle andre dokumentstier som standard.
+
+Reglene må foreløpig publiseres manuelt i Firebase Console under **Firestore Database → Rules**.
 
 ## Slik kobles Firebase inn senere
 
