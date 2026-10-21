@@ -6,3 +6,6 @@ Thumbs.db
 js/firebase-config.js
 .firebase/
 firebase-debug.log
+node_modules/
+.env.local
+.env.*.local
