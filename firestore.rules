@@ -1,0 +1,159 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function validId(data) {
+      return data.id is string
+        && data.id.size() > 0
+        && data.id.size() <= 200;
+    }
+
+    function validTask(data) {
+      return data.keys().hasAll([
+          'id',
+          'text',
+          'priority',
+          'date',
+          'originalDate',
+          'status',
+          'subtasks',
+          'createdAt'
+        ])
+        && validId(data)
+        && data.text is string
+        && data.text.size() > 0
+        && data.text.size() <= 500
+        && data.priority in ['Høy', 'Middels', 'Lav']
+        && data.date is string
+        && data.date.size() <= 10
+        && data.originalDate is string
+        && data.originalDate.size() <= 10
+        && data.status in ['Ikke startet', 'Pågår', 'Venter', 'Ferdig']
+        && data.subtasks is list
+        && data.subtasks.size() <= 100
+        && data.createdAt is int;
+    }
+
+    function validEvent(data) {
+      return data.keys().hasAll(['id', 'name', 'date', 'createdAt'])
+        && validId(data)
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 120
+        && data.date is string
+        && data.date.size() <= 10
+        && data.createdAt is int;
+    }
+
+    function validLink(data) {
+      return data.keys().hasAll(['id', 'name', 'url', 'createdAt'])
+        && validId(data)
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 40
+        && data.url is string
+        && data.url.size() > 0
+        && data.url.size() <= 2048
+        && data.createdAt is int;
+    }
+
+    function validNote(data) {
+      return data.keys().hasAll([
+          'id',
+          'taskId',
+          'body',
+          'createdAt',
+          'updatedAt'
+        ])
+        && validId(data)
+        && (data.taskId == null
+          || (data.taskId is string && data.taskId.size() <= 200))
+        && data.body is string
+        && data.body.size() <= 200000
+        && data.createdAt is int
+        && data.updatedAt is int;
+    }
+
+    function validSettings(data) {
+      return data.keys().hasOnly(['value', 'updatedAt'])
+        && data.value is map
+        && data.value.keys().hasOnly([
+          'theme',
+          'defaultView',
+          'confirmDelete',
+          'sortMode'
+        ])
+        && data.value.theme in ['dark', 'light', 'system']
+        && data.value.defaultView in [
+          'overview',
+          'tasks',
+          'calendar',
+          'notes',
+          'stats'
+        ]
+        && data.value.confirmDelete is bool
+        && data.value.sortMode in ['manual', 'automatic']
+        && data.updatedAt is timestamp;
+    }
+
+    function validMigration(data) {
+      return data.keys().hasOnly([
+          'version',
+          'imported',
+          'reason',
+          'reviewedAt'
+        ])
+        && data.version == 1
+        && data.imported is bool
+        && data.reason is string
+        && data.reason.size() <= 100
+        && data.reviewedAt is timestamp;
+    }
+
+    match /users/{userId}/tasks/{taskId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && validTask(request.resource.data);
+    }
+
+    match /users/{userId}/events/{eventId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && validEvent(request.resource.data);
+    }
+
+    match /users/{userId}/links/{linkId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && validLink(request.resource.data);
+    }
+
+    match /users/{userId}/notes/{noteId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && validNote(request.resource.data);
+    }
+
+    match /users/{userId}/meta/settings {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && validSettings(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /users/{userId}/meta/migration {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && validMigration(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

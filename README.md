@@ -24,7 +24,7 @@ HuskelApp er en personlig planleggingsapp bygget med HTML, CSS og vanilla JavaSc
 - Innstillinger
 - Personlige favorittlenker i Verktøy-kortet med eget redigeringsvindu
 - Egen notatside med frie notater og skjulte notater knyttet til oppgaver
-- Firebase/Firestore-adapterstruktur for senere synkronisering og innlogging
+- Firebase Authentication og personlig Firestore-lagring per bruker
 
 ## Struktur
 
@@ -67,7 +67,7 @@ python -m http.server 8000
 
 ## Lagring nå
 
-Appen bruker disse eksisterende nøklene slik at tidligere data kan videreføres:
+Eksisterende localStorage-data beholdes som lokal backup og kan migreres én gang til den innloggede Firestore-kontoen:
 
 ```text
 huskelapp_tasks_v1

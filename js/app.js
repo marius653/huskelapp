@@ -1,11 +1,16 @@
 import { createStore } from "./services/store.js";
+import { createAuthService } from "./services/auth-service.js";
+import { createLocalStore } from "./services/local-store.js";
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 
 const el = {
   body: document.body,
-  navLinks: $$('[data-view-link]'),
+  authGate: $('#authGate'),
+  landingAuthButton: $('#landingAuthButton'),
+  authGateStatus: $('#authGateStatus'),
+  navLinks: [...document.querySelectorAll('[data-view-link]')],
   dashboardView: $('#dashboardView'),
   calendarFocusView: $('#calendarFocusView'),
   notesView: $('#notesView'),
@@ -14,6 +19,10 @@ const el = {
   themeToggle: $('#themeToggle'),
   profileButton: $('#profileButton'),
   profilePopover: $('#profilePopover'),
+  profileName: $('#profileName'),
+  profileEmail: $('#profileEmail'),
+  profileAvatarLarge: $('#profileAvatarLarge'),
+  authButton: $('#authButton'),
   taskForm: $('#taskForm'),
   taskText: $('#taskText'),
   taskSubtasks: $('#taskSubtasks'),
@@ -84,17 +93,22 @@ const el = {
   statsPeriodLabel: $('#statsPeriodLabel')
 };
 
-let store;
-let tasks = [];
-let calendarEvents = [];
-let favoriteLinks = [];
-let notes = [];
-let settings = {
+const DEFAULT_SETTINGS = {
   theme: 'dark',
   defaultView: 'overview',
   confirmDelete: true,
   sortMode: 'manual'
 };
+
+let store;
+let authService;
+let currentUser = null;
+let authSessionToken = 0;
+let tasks = [];
+let calendarEvents = [];
+let favoriteLinks = [];
+let notes = [];
+let settings = { ...DEFAULT_SETTINGS };
 let currentFilter = 'open';
 let currentView = 'overview';
 let searchQuery = '';
@@ -103,6 +117,235 @@ let addingSubtaskTaskId = null;
 let activeNoteId = null;
 let activeNoteTaskId = null;
 let dragState = null;
+
+function renderAuthState(user) {
+  currentUser = user;
+  el.landingAuthButton.disabled = false;
+  el.landingAuthButton.textContent = 'Logg inn med Google';
+  el.authGateStatus.textContent = 'Du må være logget inn for å bruke HuskelApp.';
+
+  if (user) {
+    const name = user.displayName || 'Innlogget bruker';
+    const initial = name.trim().slice(0, 1).toUpperCase() || 'H';
+
+    el.profileName.textContent = name;
+    el.profileEmail.textContent = user.email || 'Innlogget med Google';
+    el.profileAvatarLarge.textContent = initial;
+    el.profileButton.querySelector('span').textContent = initial;
+    el.profileButton.title = `Konto – ${name}`;
+    el.authButton.textContent = 'Logg ut';
+    return;
+  }
+
+  el.profileName.textContent = 'Ikke logget inn';
+  el.profileEmail.textContent = 'Logg inn for å åpne HuskelApp';
+  el.profileAvatarLarge.textContent = 'H';
+  el.profileButton.querySelector('span').textContent = 'H';
+  el.profileButton.title = 'Konto';
+  el.authButton.textContent = 'Logg inn med Google';
+}
+
+function authErrorMessage(error) {
+  if (error?.code === 'auth/unauthorized-domain') {
+    return 'Dette domenet er ikke autorisert i Firebase Authentication. Legg preview-domenet til under Authorized domains.';
+  }
+  if (error?.code === 'auth/popup-blocked') {
+    return 'Nettleseren blokkerte innloggingsvinduet. Tillat popup-vinduer og prøv igjen.';
+  }
+  return 'Kunne ikke logge inn. Se utviklerkonsollen for detaljer.';
+}
+
+function clearUserState() {
+  store = null;
+  tasks = [];
+  calendarEvents = [];
+  favoriteLinks = [];
+  notes = [];
+  settings = { ...DEFAULT_SETTINGS };
+  currentFilter = 'open';
+  currentView = 'overview';
+  searchQuery = '';
+  editingId = null;
+  addingSubtaskTaskId = null;
+  activeNoteId = null;
+  activeNoteTaskId = null;
+  el.globalSearch.value = '';
+  document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+}
+
+async function readStoreSnapshot(targetStore) {
+  const [storedTasks, storedEvents, storedLinks, storedNotes, storedSettings] = await Promise.all([
+    targetStore.getTasks(),
+    targetStore.getEvents(),
+    targetStore.getLinks(),
+    targetStore.getNotes(),
+    targetStore.getSettings()
+  ]);
+
+  return {
+    tasks: storedTasks,
+    events: storedEvents,
+    links: storedLinks,
+    notes: storedNotes,
+    settings: storedSettings
+  };
+}
+
+function snapshotHasContent(snapshot) {
+  return snapshot.tasks.length > 0 ||
+    snapshot.events.length > 0 ||
+    snapshot.links.length > 0 ||
+    snapshot.notes.length > 0;
+}
+
+function normalizeSnapshot(snapshot) {
+  return {
+    tasks: snapshot.tasks.map(migrateTask),
+    events: snapshot.events.map((event, index) => ({
+      id: event.id || createId(`event-${index}`),
+      name: event.name || '',
+      date: event.date || localDateString(),
+      createdAt: event.createdAt || Date.now() + index
+    })),
+    links: snapshot.links.map((link, index) => ({
+      id: link.id || createId(`link-${index}`),
+      name: String(link.name || '').trim(),
+      url: normalizeLinkUrl(link.url),
+      createdAt: link.createdAt || Date.now() + index
+    })).filter(link => link.name && link.url),
+    notes: snapshot.notes.map(migrateNote),
+    settings: {
+      ...DEFAULT_SETTINGS,
+      ...(snapshot.settings && typeof snapshot.settings === 'object' ? snapshot.settings : {})
+    }
+  };
+}
+
+async function maybeMigrateLocalData(cloudStore, cloudSnapshot) {
+  const migrationState = await cloudStore.getMigrationState();
+  if (migrationState?.version >= 1) return cloudSnapshot;
+
+  if (snapshotHasContent(cloudSnapshot)) {
+    await cloudStore.markLocalMigrationReviewed({
+      imported: false,
+      reason: 'cloud-data-exists'
+    });
+    return cloudSnapshot;
+  }
+
+  const localStore = createLocalStore();
+  const localSnapshot = await readStoreSnapshot(localStore);
+
+  if (!snapshotHasContent(localSnapshot)) {
+    await cloudStore.markLocalMigrationReviewed({
+      imported: false,
+      reason: 'no-local-data'
+    });
+    return cloudSnapshot;
+  }
+
+  const shouldImport = confirm(
+    'HuskelApp fant data som bare ligger lokalt i denne nettleseren. ' +
+    'Vil du kopiere oppgaver, hendelser, notater og favorittlenker til den innloggede kontoen? ' +
+    'Den lokale kopien beholdes som backup.'
+  );
+
+  if (!shouldImport) {
+    await cloudStore.markLocalMigrationReviewed({
+      imported: false,
+      reason: 'user-skipped'
+    });
+    return cloudSnapshot;
+  }
+
+  const normalizedLocal = normalizeSnapshot(localSnapshot);
+
+  await Promise.all([
+    cloudStore.saveTasks(normalizedLocal.tasks),
+    cloudStore.saveEvents(normalizedLocal.events),
+    cloudStore.saveLinks(normalizedLocal.links),
+    cloudStore.saveNotes(normalizedLocal.notes),
+    cloudStore.saveSettings(normalizedLocal.settings)
+  ]);
+
+  await cloudStore.markLocalMigrationReviewed({
+    imported: true,
+    reason: 'local-storage-v1'
+  });
+
+  return readStoreSnapshot(cloudStore);
+}
+
+function applySnapshot(snapshot) {
+  const normalized = normalizeSnapshot(snapshot);
+  tasks = normalized.tasks;
+  calendarEvents = normalized.events;
+  favoriteLinks = normalized.links;
+  notes = normalized.notes;
+  settings = normalized.settings;
+  ensureInitialOrder();
+}
+
+function renderUserApp() {
+  applyTheme(settings.theme);
+  el.sortMode.value = settings.sortMode;
+  el.todayLabel.textContent = new Intl.DateTimeFormat('nb-NO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }).format(new Date());
+  el.taskDate.value = localDateString();
+  el.eventDate.min = localDateString();
+  renderTasks();
+  renderCalendarArea();
+  renderFavoriteLinks();
+  renderNotes();
+  renderStats();
+  showView(settings.defaultView);
+}
+
+async function loadUserSession(user) {
+  const sessionToken = ++authSessionToken;
+  el.body.dataset.authState = 'loading';
+  el.landingAuthButton.disabled = true;
+  el.landingAuthButton.textContent = 'Laster data…';
+  el.authGateStatus.textContent = 'Kobler til den personlige HuskelApp-kontoen din…';
+
+  try {
+    const nextStore = await createStore({ uid: user.uid });
+    let snapshot = await readStoreSnapshot(nextStore);
+    snapshot = await maybeMigrateLocalData(nextStore, snapshot);
+
+    if (sessionToken !== authSessionToken || currentUser?.uid !== user.uid) return;
+
+    store = nextStore;
+    applySnapshot(snapshot);
+    await persistTasks();
+    renderUserApp();
+    el.body.dataset.authState = 'signed-in';
+  } catch (error) {
+    if (sessionToken !== authSessionToken) return;
+    console.error(error);
+    el.body.dataset.authState = 'signed-out';
+    el.landingAuthButton.disabled = false;
+    el.landingAuthButton.textContent = 'Prøv igjen';
+    el.authGateStatus.textContent = 'Kunne ikke laste data fra Firestore. Kontroller tilkoblingen og sikkerhetsreglene.';
+  }
+}
+
+async function handleAuthStateChange(user) {
+  renderAuthState(user);
+
+  if (!user) {
+    authSessionToken += 1;
+    clearUserState();
+    el.body.dataset.authState = 'signed-out';
+    return;
+  }
+
+  await loadUserSession(user);
+}
 
 function localDateString(date = new Date()) {
   const year = date.getFullYear();
@@ -1100,7 +1343,7 @@ el.taskSubtasks.addEventListener('input', () => autoGrowTextarea(el.taskSubtasks
 el.globalSearch.addEventListener('input', () => { searchQuery = el.globalSearch.value.trim().toLowerCase(); renderTasks(); });
 
 document.addEventListener('keydown', event => {
-  if (event.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) { event.preventDefault(); el.globalSearch.focus(); }
+  if (currentUser && event.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) { event.preventDefault(); el.globalSearch.focus(); }
   if (event.key === 'Escape') { el.profilePopover.hidden = true; el.profileButton.setAttribute('aria-expanded', 'false'); }
 });
 
@@ -1115,6 +1358,52 @@ el.profileButton.addEventListener('click', () => {
   const open = !el.profilePopover.hidden;
   el.profilePopover.hidden = open;
   el.profileButton.setAttribute('aria-expanded', String(!open));
+});
+
+el.authButton.addEventListener('click', async () => {
+  el.authButton.disabled = true;
+
+  try {
+    if (currentUser) {
+      await authService.signOut();
+      el.profilePopover.hidden = true;
+      el.profileButton.setAttribute('aria-expanded', 'false');
+    } else {
+      await authService.signInWithGoogle();
+    }
+  } catch (error) {
+    console.error(error);
+    if (error?.code !== 'auth/popup-closed-by-user') alert(authErrorMessage(error));
+  } finally {
+    el.authButton.disabled = false;
+  }
+});
+
+el.landingAuthButton.addEventListener('click', async () => {
+  if (currentUser) {
+    await loadUserSession(currentUser);
+    return;
+  }
+
+  el.landingAuthButton.disabled = true;
+  el.landingAuthButton.textContent = 'Åpner Google…';
+  el.authGateStatus.textContent = 'Fullfør innloggingen i Google-vinduet.';
+
+  try {
+    await authService.signInWithGoogle();
+  } catch (error) {
+    console.error(error);
+    if (error?.code !== 'auth/popup-closed-by-user') {
+      el.authGateStatus.textContent = authErrorMessage(error);
+    } else {
+      el.authGateStatus.textContent = 'Innloggingen ble avbrutt.';
+    }
+  } finally {
+    if (!currentUser) {
+      el.landingAuthButton.disabled = false;
+      el.landingAuthButton.textContent = 'Logg inn med Google';
+    }
+  }
 });
 
 document.addEventListener('click', event => {
@@ -1219,37 +1508,23 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()
 });
 
 async function init() {
-  store = await createStore();
-  const [storedTasks, storedEvents, storedLinks, storedNotes, storedSettings] = await Promise.all([
-    store.getTasks(), store.getEvents(), store.getLinks(), store.getNotes(), store.getSettings()
-  ]);
-  tasks = storedTasks.map(migrateTask);
-  calendarEvents = storedEvents.map((event, index) => ({ id: event.id || createId(`event-${index}`), name: event.name || '', date: event.date || localDateString(), createdAt: event.createdAt || Date.now() + index }));
-  favoriteLinks = storedLinks.map((link, index) => ({
-    id: link.id || createId(`link-${index}`),
-    name: String(link.name || '').trim(),
-    url: normalizeLinkUrl(link.url),
-    createdAt: link.createdAt || Date.now() + index
-  })).filter(link => link.name && link.url);
-  notes = storedNotes.map(migrateNote);
-  settings = { ...settings, ...(storedSettings && typeof storedSettings === 'object' ? storedSettings : {}) };
-  ensureInitialOrder();
-  await persistTasks();
-  applyTheme(settings.theme);
-  el.sortMode.value = settings.sortMode;
-  el.todayLabel.textContent = new Intl.DateTimeFormat('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
-  el.taskDate.value = localDateString();
-  el.eventDate.min = localDateString();
-  renderTasks();
-  renderCalendarArea();
-  renderFavoriteLinks();
-  renderNotes();
-  renderStats();
-  showView(settings.defaultView);
-  setInterval(() => { renderCalendarArea(); renderTasks(); }, 60000);
+  authService = createAuthService();
+  authService.onAuthStateChanged(user => {
+    void handleAuthStateChange(user);
+  });
+
+  setInterval(() => {
+    if (!currentUser || el.body.dataset.authState !== 'signed-in') return;
+    renderCalendarArea();
+    renderTasks();
+  }, 60000);
 }
 
 init().catch(error => {
   console.error(error);
+  el.body.dataset.authState = 'signed-out';
+  el.landingAuthButton.disabled = false;
+  el.landingAuthButton.textContent = 'Prøv innlogging igjen';
+  el.authGateStatus.textContent = 'HuskelApp kunne ikke starte innloggingen. Kontroller Firebase-oppsettet og prøv igjen.';
   el.taskList.innerHTML = '<div class="empty-state">Appen kunne ikke starte. Åpne utviklerkonsollen for detaljer.</div>';
 });
