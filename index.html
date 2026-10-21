@@ -9,7 +9,25 @@
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
-<body data-theme="dark" data-view="overview">
+<body data-theme="dark" data-view="overview" data-auth-state="loading">
+  <section id="authGate" class="auth-gate" aria-live="polite">
+    <div class="auth-gate-card">
+      <div class="auth-gate-brand">
+        <span class="brand-icon auth-gate-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5 9.2 17 19 7"/></svg></span>
+        <span>HuskelApp</span>
+      </div>
+      <div class="auth-gate-copy">
+        <span class="kicker">Personlig planlegging</span>
+        <h1>Alt du skal huske, samlet på ett sted.</h1>
+        <p>Oppgaver, kalender, notater og nyttige lenker i en enkel oversikt.</p>
+      </div>
+      <button id="landingAuthButton" class="button button-primary auth-gate-button" type="button" disabled>
+        Kontrollerer innlogging…
+      </button>
+      <p id="authGateStatus" class="auth-gate-status">Du må være logget inn for å bruke HuskelApp.</p>
+    </div>
+  </section>
+
   <header class="topbar">
     <div class="topbar-inner">
       <button class="brand" type="button" data-view-link="overview" aria-label="Gå til oversikt">
