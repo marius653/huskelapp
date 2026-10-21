@@ -649,3 +649,102 @@ body.is-sorting,body.is-sorting * { cursor: grabbing !important; user-select: no
 
   .note-delete-button { order: 3; }
 }
+
+
+/* Authentication landing */
+body[data-auth-state="loading"] .topbar,
+body[data-auth-state="loading"] .app-shell,
+body[data-auth-state="signed-out"] .topbar,
+body[data-auth-state="signed-out"] .app-shell {
+  display: none;
+}
+
+body[data-auth-state="signed-in"] .auth-gate {
+  display: none;
+}
+
+.auth-gate {
+  min-height: 100vh;
+  padding: 32px 20px;
+  display: grid;
+  place-items: center;
+}
+
+.auth-gate-card {
+  width: min(520px, 100%);
+  padding: clamp(28px, 5vw, 46px);
+  display: grid;
+  gap: 26px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255,255,255,.025), transparent 40%), var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.auth-gate-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+  font-size: 1.28rem;
+  font-weight: 850;
+  letter-spacing: -.035em;
+}
+
+.auth-gate-logo {
+  width: 42px;
+  height: 42px;
+}
+
+.auth-gate-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-gate-copy h1 {
+  max-width: 440px;
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1.02;
+  letter-spacing: -.055em;
+}
+
+.auth-gate-copy p {
+  max-width: 430px;
+  margin: 0;
+  color: var(--muted);
+  font-size: .94rem;
+  line-height: 1.65;
+}
+
+.auth-gate-button {
+  width: 100%;
+  min-height: 48px;
+  font-size: .86rem;
+}
+
+.auth-gate-button:disabled {
+  opacity: .68;
+  cursor: wait;
+}
+
+.auth-gate-status {
+  min-height: 20px;
+  margin: -12px 0 0;
+  color: var(--muted);
+  font-size: .72rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .auth-gate {
+    padding: 18px 14px;
+  }
+
+  .auth-gate-card {
+    padding: 26px 20px;
+    border-radius: 18px;
+  }
+}
