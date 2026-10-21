@@ -103,6 +103,8 @@ body[data-theme="dark"] .moon-icon,body[data-theme="light"] .sun-icon { display:
 .profile-card-head strong { font-size: .9rem; }
 .profile-card-head span,.profile-note { color: var(--muted); font-size: .75rem; line-height: 1.45; }
 .profile-note { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--border); }
+.profile-auth-button { width: 100%; }
+.profile-auth-button:disabled { opacity: .65; cursor: wait; }
 .app-shell { max-width: 1800px; margin: 0 auto; padding: 28px 24px 60px; }
 .view-panel { display: none; }
 .view-panel.active { display: block; }
