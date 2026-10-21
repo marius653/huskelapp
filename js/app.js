@@ -10,7 +10,7 @@ const el = {
   authGate: $('#authGate'),
   landingAuthButton: $('#landingAuthButton'),
   authGateStatus: $('#authGateStatus'),
-  navLinks: $('[data-view-link]'),
+  navLinks: [...document.querySelectorAll('[data-view-link]')],
   dashboardView: $('#dashboardView'),
   calendarFocusView: $('#calendarFocusView'),
   notesView: $('#notesView'),
