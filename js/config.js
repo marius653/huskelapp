@@ -1,4 +1,4 @@
 export const APP_CONFIG = {
-  storageProvider: "local",
+  storageProvider: "firebase",
   authProvider: "firebase"
 };
