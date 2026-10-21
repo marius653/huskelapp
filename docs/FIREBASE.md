@@ -1,6 +1,6 @@
 # Firebase-plan for HuskelApp
 
-HuskelApp v3 bruker foreløpig localStorage, men all lagring går gjennom `js/services/`.
+HuskelApp v3 bruker Firebase Authentication og Cloud Firestore. localStorage beholdes kun som migreringskilde og lokal backup for eldre data.
 
 ## Målarkitektur
 
@@ -56,9 +56,9 @@ service cloud.firestore {
 4. Legg GitHub Pages-domenet til som autorisert domene.
 5. Kopier `js/firebase-config.example.js` til `js/firebase-config.js`.
 6. Fyll inn konfigurasjonen.
-7. Implementer `createFirebaseStore()` i `js/services/firebase-store.js`.
-8. Implementer Firebase Auth i `js/services/auth-service.js`.
-9. Endre `js/config.js` til `storageProvider: "firebase"` og `authProvider: "firebase"`.
+7. `createFirebaseStore()` lagrer data per innlogget `uid`.
+8. Firebase Auth håndterer Google-innlogging og sesjon.
+9. `js/config.js` bruker `storageProvider: "firebase"` og `authProvider: "firebase"`.
 
 ## Migrering av eksisterende data
 
