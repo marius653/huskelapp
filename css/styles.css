@@ -93,7 +93,7 @@ svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1
 .top-icon-button:hover,.avatar-button:hover { border-color: var(--border-strong); background: var(--panel-3); }
 .sun-icon,.moon-icon { width: 19px; height: 19px; }
 body[data-theme="dark"] .moon-icon,body[data-theme="light"] .sun-icon { display: none; }
-.avatar-button span,.avatar-large { display: grid; place-items: center; border-radius: 50%; background: linear-gradient(145deg, #eaf2ff, #bdcce1); color: #1e3558; font-weight: 850; }
+.avatar-button span,.avatar-large { display: grid; place-items: center; border-radius: 50%; background: linear-gradient(145deg, #eceff2, #c7ccd1); color: #343a40; font-weight: 850; }
 .avatar-button span { width: 28px; height: 28px; }
 .avatar-large { width: 44px; height: 44px; flex: 0 0 auto; }
 .profile-menu { position: relative; }
