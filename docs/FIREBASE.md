@@ -1,61 +1,80 @@
-# Firebase-plan for HuskelApp
+# Firebase-oppsett for HuskelApp
 
-HuskelApp v3 bruker Firebase Authentication og Cloud Firestore. localStorage beholdes kun som migreringskilde og lokal backup for eldre data.
+HuskelApp bruker Firebase Authentication, Cloud Firestore og Firebase Hosting. GitHub er kildekode- og CI-kilden, mens den publiserte appen ligger på Firebase Hosting.
 
-## Målarkitektur
-
-```text
-GitHub Pages
-   |
-   +-- Firebase Authentication
-   |
-   +-- Cloud Firestore
-```
-
-## Anbefalt Firestore-struktur
+## Produksjonsarkitektur
 
 ```text
-users/
-  {uid}/
-    tasks/
-      {taskId}
-    events/
-      {eventId}
-    links/
-      {linkId}
-    notes/
-      {noteId}
-    meta/
-      settings
+GitHub
+  |
+  +-- GitHub Actions
+        |
+        +-- Vite build
+        |
+        +-- Firebase Hosting
+              |
+              +-- Firebase Authentication
+              +-- Cloud Firestore
 ```
 
-## Authentication
+Standard Hosting-adresser:
 
-Google-innlogging er et naturlig førstesteg. E-post/passord kan også aktiveres. All data bør ligge under den innloggede brukerens `uid`.
+- `https://huskelapp-7625b.web.app`
+- `https://huskelapp-7625b.firebaseapp.com`
 
-## Security Rules
+`firebaseapp.com` brukes også som Firebase Auth-domene og fungerer med redirect-innlogging på iOS/Safari.
 
-De validerte reglene ligger i `firestore.rules`.
+## Lokal konfigurasjon
 
-Reglene krever innlogging, begrenser all tilgang til den innloggede brukerens egen `uid`, validerer grunnleggende felttyper og lengder, og avviser alle andre dokumentstier som standard.
+Firebase web-konfigurasjonen leses fra `.env.local`. Filen skal ikke committes.
 
-Reglene må foreløpig publiseres manuelt i Firebase Console under **Firestore Database → Rules**.
+```text
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=huskelapp-7625b.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=huskelapp-7625b
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+```
 
-## Slik kobles Firebase inn senere
+De samme seks verdiene ligger som GitHub Repository Variables for CI-builden.
 
-1. Opprett Firebase-prosjekt.
-2. Aktiver Authentication.
-3. Opprett Firestore.
-4. Legg GitHub Pages-domenet til som autorisert domene.
-5. Kopier `js/firebase-config.example.js` til `js/firebase-config.js`.
-6. Fyll inn konfigurasjonen.
-7. `createFirebaseStore()` lagrer data per innlogget `uid`.
-8. Firebase Auth håndterer Google-innlogging og sesjon.
-9. `js/config.js` bruker `storageProvider: "firebase"` og `authProvider: "firebase"`.
+## Hosting
 
-## Migrering av eksisterende data
+`firebase.json` publiserer Vite-output fra `dist/` og bruker SPA-rewrite til `/index.html`.
 
-Når Firebase kobles på bør vi lage en engangsmigrering fra:
+`.firebaserc` kobler repoet til Firebase-prosjektet `huskelapp-7625b`.
+
+Manuell deploy fra lokal terminal:
+
+```powershell
+npm.cmd run build
+npx.cmd firebase-tools deploy --only hosting
+```
+
+## Automatisk deploy fra GitHub
+
+Push eller merge til `main` bygger og deployer automatisk via `.github/workflows/deploy-firebase-hosting.yml`.
+
+Workflowen trenger GitHub Repository Secret:
+
+```text
+FIREBASE_SERVICE_ACCOUNT_HUSKELAPP_7625B
+```
+
+Verdien skal være hele JSON-innholdet fra en Firebase/Google Cloud service-account-nøkkel med rettighet til å deploye Hosting. Denne nøkkelen er hemmelig og skal aldri committes.
+
+## Firestore Security Rules
+
+Reglene ligger i `firestore.rules`.
+
+De krever innlogging, begrenser tilgang til den innloggede brukerens egen `uid`, validerer grunnleggende felttyper og lengder, og avviser andre dokumentstier som standard.
+
+Reglene publiseres separat fra Hosting.
+
+## Migrering av eldre lokale data
+
+Ved første innlogging kan HuskelApp importere eldre data fra:
 
 - `huskelapp_tasks_v1`
 - `huskelapp_events_v1`
@@ -63,4 +82,4 @@ Når Firebase kobles på bør vi lage en engangsmigrering fra:
 - `huskelapp_links_v1`
 - `huskelapp_notes_v1`
 
-Dataene lastes opp under brukerens `uid`, verifiseres, og den lokale kopien beholdes til synkroniseringen er kontrollert.
+Den lokale kopien beholdes som backup etter migrering.
