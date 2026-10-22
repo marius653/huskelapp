@@ -22,7 +22,7 @@ Produksjonsadresser:
 - `https://huskelapp-m.web.app`
 - `https://huskelapp-m.firebaseapp.com`
 
-For iOS/Safari bør appen installeres fra `huskelapp-m.firebaseapp.com`, og Firebase Auth-domene bør være samme adresse.
+For iOS/Safari installeres appen fra `huskelapp-m.firebaseapp.com`, mens Firebase Authentication bruker prosjektets standard `authDomain`: `huskelapp-7625b.firebaseapp.com`.
 
 ## Lokal konfigurasjon
 
@@ -30,14 +30,14 @@ Firebase web-konfigurasjonen leses fra `.env.local`. Filen skal ikke committes.
 
 ```text
 VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=huskelapp-m.firebaseapp.com
+VITE_FIREBASE_AUTH_DOMAIN=huskelapp-7625b.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=huskelapp-7625b
 VITE_FIREBASE_STORAGE_BUCKET=...
 VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
 ```
 
-De samme seks verdiene ligger som GitHub Repository Variables for CI-builden.
+Firebase-klientverdiene ligger som GitHub Repository Variables for CI-builden. `VITE_FIREBASE_AUTH_DOMAIN` settes eksplisitt til prosjektets standard Firebase Auth-domene i workflowen.
 
 ## Hosting
 
