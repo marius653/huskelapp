@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "huskelapp-7625b"
+  },
+  "targets": {
+    "huskelapp-7625b": {
+      "hosting": {
+        "app": [
+          "huskelapp-m"
+        ]
+      }
+    }
   }
 }

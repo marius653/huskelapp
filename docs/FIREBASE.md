@@ -11,18 +11,18 @@ GitHub
         |
         +-- Vite build
         |
-        +-- Firebase Hosting
+        +-- Firebase Hosting: huskelapp-m
               |
               +-- Firebase Authentication
               +-- Cloud Firestore
 ```
 
-Standard Hosting-adresser:
+Produksjonsadresser:
 
-- `https://huskelapp-7625b.web.app`
-- `https://huskelapp-7625b.firebaseapp.com`
+- `https://huskelapp-m.web.app`
+- `https://huskelapp-m.firebaseapp.com`
 
-`firebaseapp.com` brukes også som Firebase Auth-domene og fungerer med redirect-innlogging på iOS/Safari.
+For iOS/Safari bør appen installeres fra `huskelapp-m.firebaseapp.com`, og Firebase Auth-domene bør være samme adresse.
 
 ## Lokal konfigurasjon
 
@@ -30,7 +30,7 @@ Firebase web-konfigurasjonen leses fra `.env.local`. Filen skal ikke committes.
 
 ```text
 VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=huskelapp-7625b.firebaseapp.com
+VITE_FIREBASE_AUTH_DOMAIN=huskelapp-m.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=huskelapp-7625b
 VITE_FIREBASE_STORAGE_BUCKET=...
 VITE_FIREBASE_MESSAGING_SENDER_ID=...
@@ -41,28 +41,28 @@ De samme seks verdiene ligger som GitHub Repository Variables for CI-builden.
 
 ## Hosting
 
-`firebase.json` publiserer Vite-output fra `dist/` og bruker SPA-rewrite til `/index.html`.
+`firebase.json` publiserer Vite-output fra `dist/`, bruker SPA-rewrite til `/index.html`, og peker på Hosting-target `app`.
 
-`.firebaserc` kobler repoet til Firebase-prosjektet `huskelapp-7625b`.
+`.firebaserc` kobler target `app` til Firebase Hosting-siten `huskelapp-m` i prosjektet `huskelapp-7625b`.
 
 Manuell deploy fra lokal terminal:
 
 ```powershell
 npm.cmd run build
-npx.cmd firebase-tools deploy --only hosting
+npx.cmd firebase-tools deploy --only hosting:app
 ```
 
 ## Automatisk deploy fra GitHub
 
 Push eller merge til `main` bygger og deployer automatisk via `.github/workflows/deploy-firebase-hosting.yml`.
 
-Workflowen trenger GitHub Repository Secret:
+Workflowen bruker Hosting-target `app` og GitHub Repository Secret:
 
 ```text
 FIREBASE_SERVICE_ACCOUNT_HUSKELAPP_7625B
 ```
 
-Verdien skal være hele JSON-innholdet fra en Firebase/Google Cloud service-account-nøkkel med rettighet til å deploye Hosting. Denne nøkkelen er hemmelig og skal aldri committes.
+Verdien er en Firebase/Google Cloud service-account-nøkkel med rettighet til å deploye Hosting. Denne nøkkelen er hemmelig og skal aldri committes.
 
 ## Firestore Security Rules
 

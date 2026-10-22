@@ -46,3 +46,4 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HUSKELAPP_7625B }}
           projectId: huskelapp-7625b
           channelId: live
+          target: app
