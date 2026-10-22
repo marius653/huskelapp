@@ -51,7 +51,7 @@ const el = {
   progressDonut: $('#progressDonut'),
   progressPercent: $('#progressPercent'),
   progressOpen: $('#progressOpen'),
-  progressDone: $('#progressDone'),
+  progressWaiting: $('#progressWaiting'),
   progressTotal: $('#progressTotal'),
   exportDataBtn: $('#exportDataBtn'),
   importDataBtn: $('#importDataBtn'),
@@ -806,13 +806,12 @@ function renderTaskOverview() {
 function renderProgress() {
   const active = tasks.filter(task => task.status !== 'Ferdig' && task.status !== 'Venter').length;
   const waiting = tasks.filter(task => task.status === 'Venter').length;
-  const done = tasks.filter(task => task.status === 'Ferdig').length;
-  const total = active + waiting + done;
-  const percent = total ? Math.round(done / total * 100) : 0;
+  const total = active + waiting;
+  const percent = total ? Math.round(active / total * 100) : 0;
   el.progressDonut.style.setProperty('--progress', `${percent}%`);
   el.progressPercent.textContent = `${percent}%`;
-  el.progressOpen.textContent = `${active} aktive · ${waiting} venter`;
-  el.progressDone.textContent = `${done} ferdige ${done === 1 ? 'oppgave' : 'oppgaver'}`;
+  el.progressOpen.textContent = `${active} aktive ${active === 1 ? 'oppgave' : 'oppgaver'}`;
+  el.progressWaiting.textContent = `${waiting} venter`;
   el.progressTotal.textContent = `Totalt: ${total} ${total === 1 ? 'oppgave' : 'oppgaver'}`;
 }
 
