@@ -1037,3 +1037,10 @@ body[data-view="overview"] .workspace-head {
     width: 100%;
   }
 }
+
+
+/* Keep app navigation behind the authentication gate */
+body[data-auth-state="loading"] .mobile-bottom-nav,
+body[data-auth-state="signed-out"] .mobile-bottom-nav {
+  display: none !important;
+}
