@@ -20,10 +20,6 @@ function isIosDevice() {
   return classicIos || modernIpad;
 }
 
-function isStandaloneApp() {
-  return window.matchMedia?.("(display-mode: standalone)")?.matches
-    || window.navigator.standalone === true;
-}
 
 export function createAuthService() {
   return {
@@ -44,7 +40,7 @@ export function createAuthService() {
     async signInWithGoogle() {
       await setPersistence(auth, browserLocalPersistence);
 
-      if (isIosDevice() && isStandaloneApp()) {
+      if (isIosDevice()) {
         await signInWithRedirect(auth, googleProvider);
         return null;
       }
